@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Experiment, SkillDraft, Event } from './types'
+import { Experiment, SkillDraft } from './types'
 import ExperimentList from './components/ExperimentList'
 import ExperimentForm from './components/ExperimentForm'
 import ExperimentDetail from './components/ExperimentDetail'
 import { saveExperiments, loadExperiments, saveSkills, loadSkills, generateSkillDraft } from './utils'
+import { createEvent } from './services/experimentActions'
 
 function App() {
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list')
@@ -26,36 +27,24 @@ function App() {
       ...data,
       status: 'draft' as const,
       createdAt: new Date().toLocaleString('zh-CN'),
-      events: [{ id: 'e1', timestamp: new Date().toLocaleTimeString(), type: 'start', message: '实验创建' }]
+      events: [createEvent('start', '实验创建')]
     }
     setExperiments([...experiments, newExp])
     setView('list')
   }
 
-  const updateExperiment = (id: string, status: Experiment['status'], eventType: Event['type'], message: string) => {
-    setExperiments(prev => prev.map(exp => {
-      if (exp.id === id) {
-        const newEvent: Event = {
-          id: Date.now().toString(),
-          timestamp: new Date().toLocaleTimeString(),
-          type: eventType,
-          message
-        }
-        return {
-          ...exp,
-          status,
-          events: [...exp.events, newEvent]
-        }
-      }
-      return exp
-    }))
+  const updateExperiment = (id: string, status: Experiment['status'], message: string) => {
+    const eventType = status === 'running' ? 'resume' : status === 'paused' ? 'pause' : status === 'success' ? 'success' : status === 'failed' ? 'failed' : 'stop'
+    setExperiments(prev => prev.map(exp =>
+      exp.id === id ? { ...exp, status, events: [...exp.events, createEvent(eventType, message)] } : exp
+    ))
   }
 
-  const handleResume = () => updateExperiment(selectedId, 'running', 'resume', '继续执行')
-  const handlePause = () => updateExperiment(selectedId, 'paused', 'pause', '暂停执行')
-  const handleStop = () => updateExperiment(selectedId, 'failed', 'stop', '停止执行')
-  const handleMarkSuccess = () => updateExperiment(selectedId, 'success', 'success', '标记为成功')
-  const handleMarkFailed = () => updateExperiment(selectedId, 'failed', 'failed', '标记为失败')
+  const handleResume = () => updateExperiment(selectedId, 'running', '继续执行')
+  const handlePause = () => updateExperiment(selectedId, 'paused', '暂停执行')
+  const handleStop = () => updateExperiment(selectedId, 'failed', '停止执行')
+  const handleMarkSuccess = () => updateExperiment(selectedId, 'success', '标记为成功')
+  const handleMarkFailed = () => updateExperiment(selectedId, 'failed', '标记为失败')
 
   const handleGenerateSkill = () => {
     const exp = experiments.find(e => e.id === selectedId)
