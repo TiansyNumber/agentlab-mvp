@@ -123,7 +123,7 @@ src/
 通过本地 OpenClaw Gateway WebSocket 接口执行 Agent 任务。
 
 **接入方式：**
-- 协议：WebSocket（`ws://localhost:19889`，默认端口）
+- 协议：WebSocket（`ws://localhost:18889`，默认端口）
 - 认证：Token（从 `openclaw config get gateway.auth` 获取）
 - 方法：`connect` → `agent`（多轮对话复用 sessionId）
 

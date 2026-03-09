@@ -11,7 +11,7 @@ export default function Settings({ onBack }: SettingsProps) {
 
   useEffect(() => {
     setApiKey(localStorage.getItem('anthropic_api_key') || '')
-    setGatewayUrl(localStorage.getItem('openclaw_gateway_url') || 'ws://localhost:19889')
+    setGatewayUrl(localStorage.getItem('openclaw_gateway_url') || 'ws://localhost:18889')
     setGatewayToken(localStorage.getItem('openclaw_gateway_token') || '')
   }, [])
 
@@ -43,13 +43,13 @@ export default function Settings({ onBack }: SettingsProps) {
       <h3>OpenClaw Runner</h3>
       <div style={{ marginBottom: '10px' }}>
         <label style={{ display: 'block', marginBottom: '5px' }}>
-          Gateway URL（默认 ws://localhost:19889）:
+          Gateway URL（默认 ws://localhost:18889）:
         </label>
         <input
           type="text"
           value={gatewayUrl}
           onChange={(e) => setGatewayUrl(e.target.value)}
-          placeholder="ws://localhost:19889"
+          placeholder="ws://localhost:18889"
           style={{ width: '400px', padding: '5px' }}
         />
       </div>

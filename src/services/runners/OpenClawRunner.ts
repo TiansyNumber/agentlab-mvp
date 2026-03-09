@@ -9,7 +9,7 @@
  * - ✅ 获取 agent 响应并映射到时间线事件
  * - ✅ 资源限制检查（maxSteps、maxTokens、maxDuration）
  * - ⚠️ 暂停/恢复为简化实现（停止当前轮次，重新开始）
- * - ⚠️ 需要本地 OpenClaw Gateway 运行（默认 localhost:19889）
+ * - ⚠️ 需要本地 OpenClaw Gateway 运行（默认 localhost:18889）
  * - ⚠️ 需要在设置中配置 Gateway Token
  *
  * 阻塞点（如果无法打通）：
@@ -65,7 +65,7 @@ export class OpenClawRunner implements IExperimentRunner {
     this.shouldStop = false
     this.sessionId = null
 
-    const gatewayUrl = localStorage.getItem('openclaw_gateway_url') || 'ws://localhost:19889'
+    const gatewayUrl = localStorage.getItem('openclaw_gateway_url') || 'ws://localhost:18889'
     const gatewayToken = localStorage.getItem('openclaw_gateway_token') || ''
 
     this.emitEvent('start', `实验开始: ${experiment.name}（OpenClaw Gateway: ${gatewayUrl}）`)
@@ -281,7 +281,7 @@ export class OpenClawRunner implements IExperimentRunner {
     this.shouldStop = false
     this.emitEvent('resume', '实验已恢复')
     if (this.status.isRunning && this.experiment && this.onEvent) {
-      const gatewayUrl = localStorage.getItem('openclaw_gateway_url') || 'ws://localhost:19889'
+      const gatewayUrl = localStorage.getItem('openclaw_gateway_url') || 'ws://localhost:18889'
       const gatewayToken = localStorage.getItem('openclaw_gateway_token') || ''
       this.runAgentLoop(gatewayUrl, gatewayToken).catch(err => {
         this.emitEvent('failed', `恢复执行错误: ${err instanceof Error ? err.message : String(err)}`)
