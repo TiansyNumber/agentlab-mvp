@@ -9,9 +9,10 @@ interface Props {
   onMarkSuccess: () => void
   onMarkFailed: () => void
   onGenerateSkill: () => void
+  onStartWithBackend?: () => void
 }
 
-export default function ExperimentDetail({ experiment, onBack, onResume, onPause, onStop, onMarkSuccess, onMarkFailed, onGenerateSkill }: Props) {
+export default function ExperimentDetail({ experiment, onBack, onResume, onPause, onStop, onMarkSuccess, onMarkFailed, onGenerateSkill, onStartWithBackend }: Props) {
   const canResume = experiment.status === 'paused'
   const canPause = experiment.status === 'running'
   const canStop = experiment.status === 'running' || experiment.status === 'paused'
@@ -39,6 +40,7 @@ export default function ExperimentDetail({ experiment, onBack, onResume, onPause
       <p><strong>限制:</strong> 最大步数 {experiment.maxSteps} | 最大Token {experiment.maxTokens} | 最大时长 {experiment.maxDuration}分钟</p>
 
       <div style={{ marginTop: '15px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+        {onStartWithBackend && <button onClick={onStartWithBackend} disabled={experiment.status !== 'draft'} style={{ backgroundColor: '#2196F3', color: 'white' }}>后端启动</button>}
         <button onClick={onResume} disabled={!canResume} style={{ opacity: canResume ? 1 : 0.5 }}>继续</button>
         <button onClick={onPause} disabled={!canPause} style={{ opacity: canPause ? 1 : 0.5 }}>暂停</button>
         <button onClick={onStop} disabled={!canStop} style={{ opacity: canStop ? 1 : 0.5 }}>停止</button>

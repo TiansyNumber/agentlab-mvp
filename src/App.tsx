@@ -5,13 +5,16 @@ import ExperimentForm from './components/ExperimentForm'
 import ExperimentDetail from './components/ExperimentDetail'
 import Settings from './components/Settings'
 import OpenClawDebugPanel from './components/OpenClawDebugPanel'
+import RuntimeManager from './components/RuntimeManager'
 import { saveExperiments, loadExperiments, saveSkills, loadSkills, generateSkillDraft } from './utils'
 import { createEvent } from './services/experimentActions'
 import { createRunner, RunnerType, IExperimentRunner } from './services/runners'
+import { api } from './services/api'
 
 function App() {
-  const [view, setView] = useState<'list' | 'create' | 'detail' | 'settings' | 'openclaw-debug'>('list')
+  const [view, setView] = useState<'list' | 'create' | 'detail' | 'settings' | 'openclaw-debug' | 'runtime'>('list')
   const [selectedId, setSelectedId] = useState<string>('')
+  const [selectedRuntimeId, setSelectedRuntimeId] = useState<string>('')
   const [experiments, setExperiments] = useState<Experiment[]>([])
   const [skills, setSkills] = useState<SkillDraft[]>([])
   const [runnerType, setRunnerType] = useState<RunnerType>('mock')
@@ -26,7 +29,7 @@ function App() {
     saveExperiments(experiments)
   }, [experiments])
 
-  const handleCreate = (data: any) => {
+  const handleCreate = async (data: any) => {
     const newExp: Experiment = {
       id: Date.now().toString(),
       ...data,
@@ -36,6 +39,42 @@ function App() {
     }
     setExperiments([...experiments, newExp])
     setView('list')
+  }
+
+  const handleStartWithBackend = async (expId: string) => {
+    if (!selectedRuntimeId) {
+      alert('请先选择 Runtime');
+      return;
+    }
+    const exp = experiments.find(e => e.id === expId);
+    if (!exp) return;
+
+    try {
+      const result = await api.startExperiment({
+        runtime_id: selectedRuntimeId,
+        owner: 'default-user',
+        task: exp.description
+      });
+      addEvent(expId, createEvent('action', `后端实验已启动: ${result.id}`));
+      updateStatus(expId, 'running');
+
+      // Poll for events
+      const pollEvents = setInterval(async () => {
+        try {
+          const events = await api.getExperimentEvents(result.id);
+          events.forEach(e => {
+            addEvent(expId, createEvent('action', `[${e.type}] ${e.message}`));
+          });
+        } catch (err) {
+          console.error('Poll events error:', err);
+        }
+      }, 3000);
+
+      setTimeout(() => clearInterval(pollEvents), 60000);
+    } catch (err) {
+      addEvent(expId, createEvent('failed', '启动失败: ' + (err as Error).message));
+      updateStatus(expId, 'failed');
+    }
   }
 
   const addEvent = (id: string, event: any) => {
@@ -136,6 +175,8 @@ function App() {
               <option value="openclaw-bridge">OpenClaw Bridge（验证工具）</option>
             </select>
           </label>
+          {selectedRuntimeId && <span style={{ marginRight: 10, color: 'green' }}>Runtime: {selectedRuntimeId.slice(0, 8)}</span>}
+          <button onClick={() => setView('runtime')} style={{ marginRight: 6 }}>Runtime 管理</button>
           <button onClick={() => setView('openclaw-debug')} style={{ marginRight: 6 }}>OpenClaw 调试</button>
           <button onClick={() => setView('settings')}>设置</button>
         </div>
@@ -151,9 +192,11 @@ function App() {
         onMarkSuccess={handleMarkSuccess}
         onMarkFailed={handleMarkFailed}
         onGenerateSkill={handleGenerateSkill}
+        onStartWithBackend={() => handleStartWithBackend(selectedId)}
       />}
       {view === 'settings' && <Settings onBack={() => setView('list')} />}
       {view === 'openclaw-debug' && <OpenClawDebugPanel onBack={() => setView('list')} />}
+      {view === 'runtime' && <RuntimeManager onBack={() => setView('list')} onSelectRuntime={(id) => { setSelectedRuntimeId(id); setView('list'); }} />}
     </div>
   )
 }
