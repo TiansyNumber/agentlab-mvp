@@ -3,15 +3,17 @@ import { Experiment, SkillDraft } from './types'
 import ExperimentList from './components/ExperimentList'
 import ExperimentForm from './components/ExperimentForm'
 import ExperimentDetail from './components/ExperimentDetail'
+import Settings from './components/Settings'
 import { saveExperiments, loadExperiments, saveSkills, loadSkills, generateSkillDraft } from './utils'
 import { createEvent } from './services/experimentActions'
-import { MockRunner, IExperimentRunner } from './services/runners'
+import { MockRunner, OpenClawRunner, IExperimentRunner } from './services/runners'
 
 function App() {
-  const [view, setView] = useState<'list' | 'create' | 'detail'>('list')
+  const [view, setView] = useState<'list' | 'create' | 'detail' | 'settings'>('list')
   const [selectedId, setSelectedId] = useState<string>('')
   const [experiments, setExperiments] = useState<Experiment[]>([])
   const [skills, setSkills] = useState<SkillDraft[]>([])
+  const [runnerType, setRunnerType] = useState<'mock' | 'openclaw'>('mock')
   const runnerRef = useRef<IExperimentRunner | null>(null)
 
   useEffect(() => {
@@ -61,7 +63,7 @@ function App() {
     if (!exp) return
 
     if (!runnerRef.current) {
-      runnerRef.current = new MockRunner()
+      runnerRef.current = runnerType === 'openclaw' ? new OpenClawRunner() : new MockRunner()
       updateStatus(selectedId, 'running')
       await runnerRef.current.start(exp, (event) => {
         addEvent(selectedId, event)
@@ -122,7 +124,19 @@ function App() {
 
   return (
     <div style={{ padding: '20px' }}>
-      <h1>AgentLab MVP</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h1>AgentLab MVP</h1>
+        <div>
+          <label style={{ marginRight: '10px' }}>
+            Runner:
+            <select value={runnerType} onChange={(e) => setRunnerType(e.target.value as 'mock' | 'openclaw')} style={{ marginLeft: '5px' }}>
+              <option value="mock">Mock</option>
+              <option value="openclaw">OpenClaw</option>
+            </select>
+          </label>
+          <button onClick={() => setView('settings')}>设置</button>
+        </div>
+      </div>
       {view === 'list' && <ExperimentList experiments={experiments} onSelect={id => { setSelectedId(id); setView('detail') }} onCreate={() => setView('create')} />}
       {view === 'create' && <ExperimentForm onSubmit={handleCreate} onCancel={() => setView('list')} />}
       {view === 'detail' && <ExperimentDetail
@@ -135,6 +149,7 @@ function App() {
         onMarkFailed={handleMarkFailed}
         onGenerateSkill={handleGenerateSkill}
       />}
+      {view === 'settings' && <Settings onBack={() => setView('list')} />}
     </div>
   )
 }
