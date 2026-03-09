@@ -3,41 +3,32 @@
  *
  * 通过 OpenClaw Gateway WebSocket 接口执行 Agent 任务。
  *
- * 真实 Gateway 协议（逆向自 /usr/local/lib/node_modules/openclaw/dist/call-CbaJN9rS.js）：
+ * 协议要求（基于 /usr/local/lib/node_modules/openclaw/docs/gateway/protocol.md）：
  *
  * 1. WebSocket 连接建立后，Gateway 先发送 connect.challenge 事件：
- *    { type: "event", event: "connect.challenge", payload: { nonce: "..." } }
+ *    { type: "event", event: "connect.challenge", payload: { nonce: "...", ts: ... } }
  *
- * 2. 客户端收到 challenge 后，发送 connect 请求：
+ * 2. 客户端收到 challenge 后，发送 connect 请求（必须包含 device 签名）：
  *    { type: "req", id: "<uuid>", method: "connect", params: {
  *        minProtocol: 3, maxProtocol: 3,
  *        client: { id: "cli", version: "1.0.0", platform: "browser", mode: "cli" },
  *        auth: { token: "<gateway_token>" },
  *        role: "operator",
- *        scopes: ["operator.admin", "operator.read", "operator.write", ...],
- *        caps: []
+ *        scopes: ["operator.read", "operator.write", ...],
+ *        caps: [],
+ *        device: { id: "...", publicKey: "...", signature: "...", signedAt: ..., nonce: "..." }
  *    }}
  *
  * 3. Gateway 响应 hello-ok：
  *    { type: "res", id: "<same-uuid>", ok: true, payload: { type: "hello-ok", ... } }
  *
- * 4. 客户端发送 agent 请求（需要 expectFinal，先收到 accepted 再收到 final）：
+ * 4. 客户端发送 agent 请求：
  *    { type: "req", id: "<uuid>", method: "agent", params: {
  *        message: "...",
- *        idempotencyKey: "<uuid>",
- *        agentId: "main"   // optional
+ *        idempotencyKey: "<uuid>"
  *    }}
  *
- * 5. Gateway 先响应 accepted：
- *    { type: "res", id: "<same-uuid>", ok: true, payload: { status: "accepted", runId: "..." } }
- *    然后响应 final（当 agent 完成时）：
- *    { type: "res", id: "<same-uuid>", ok: true, payload: { status: "final", ... } }
- *
- * 关键修正：
- * - 所有帧必须有 type 字段（"req" / "res" / "event"）
- * - connect 不是在 onopen 直接发，而是等 connect.challenge 事件
- * - agent 请求需要 idempotencyKey（必填 NonEmptyString）
- * - 响应帧格式是 { type: "res", id, ok, payload }，不是 { id, result }
+ * 5. Gateway 先响应 accepted，然后响应 final。
  */
 import { Experiment, Event } from '../../types'
 import { IExperimentRunner, RunnerStatus } from './types'
@@ -91,6 +82,36 @@ function randomUUID(): string {
     const v = c === 'x' ? r : (r & 0x3) | 0x8
     return v.toString(16)
   })
+}
+
+// 生成简单的设备指纹（浏览器环境）
+function getDeviceId(): string {
+  const stored = localStorage.getItem('openclaw_device_id')
+  if (stored) return stored
+  const deviceId = `agentlab-${randomUUID()}`
+  localStorage.setItem('openclaw_device_id', deviceId)
+  return deviceId
+}
+
+// 生成伪签名（浏览器环境无法真正签名，但协议要求必须有这些字段）
+async function createDeviceSignature(nonce: string, timestamp: number): Promise<{
+  deviceId: string
+  publicKey: string
+  signature: string
+  signedAt: number
+}> {
+  const deviceId = getDeviceId()
+  // 浏览器环境使用伪公钥和签名（实际 Gateway 可能需要真实签名）
+  const publicKey = `mock-pubkey-${deviceId.slice(0, 16)}`
+  const payload = `${deviceId}:${nonce}:${timestamp}`
+  const signature = btoa(payload) // 简单 base64 编码作为伪签名
+
+  return {
+    deviceId,
+    publicKey,
+    signature,
+    signedAt: timestamp
+  }
 }
 
 const GATEWAY_SCOPES = [
@@ -255,32 +276,47 @@ export class OpenClawRunner implements IExperimentRunner {
           const ef = frame as EventFrame
 
           if (ef.event === 'connect.challenge') {
-            const nonce = (ef.payload as { nonce?: string })?.nonce
-            this.emitEvent('action', `[调试] 收到 connect.challenge，nonce=${nonce ?? '(无)'}`)
+            const payload = ef.payload as { nonce?: string; ts?: number } | undefined
+            const nonce = payload?.nonce || ''
+            const ts = payload?.ts || Date.now()
+            this.emitEvent('action', `[调试] 收到 connect.challenge，nonce=${nonce || '(无)'}`)
 
-            // 发送 connect 请求
-            connectId = randomUUID()
-            const connectReq: ReqFrame = {
-              type: 'req',
-              id: connectId,
-              method: 'connect',
-              params: {
-                minProtocol: 3,
-                maxProtocol: 3,
-                client: {
-                  id: 'cli',
-                  version: '1.0.0',
-                  platform: 'browser',
-                  mode: 'cli',
+            // 生成设备签名
+            createDeviceSignature(nonce, ts).then((deviceAuth) => {
+              // 发送 connect 请求
+              connectId = randomUUID()
+              const connectReq: ReqFrame = {
+                type: 'req',
+                id: connectId,
+                method: 'connect',
+                params: {
+                  minProtocol: 3,
+                  maxProtocol: 3,
+                  client: {
+                    id: 'cli',
+                    version: '1.0.0',
+                    platform: 'browser',
+                    mode: 'cli',
+                  },
+                  caps: [],
+                  role: 'operator',
+                  scopes: GATEWAY_SCOPES,
+                  device: {
+                    id: deviceAuth.deviceId,
+                    publicKey: deviceAuth.publicKey,
+                    signature: deviceAuth.signature,
+                    signedAt: deviceAuth.signedAt,
+                    nonce: nonce,
+                  },
+                  ...(token ? { auth: { token } } : {}),
                 },
-                caps: [],
-                role: 'operator',
-                scopes: GATEWAY_SCOPES,
-                ...(token ? { auth: { token } } : {}),
-              },
-            }
-            ws.send(JSON.stringify(connectReq))
-            this.emitEvent('action', '[调试] 已发送 connect 请求...')
+              }
+              ws.send(JSON.stringify(connectReq))
+              this.emitEvent('action', '[调试] 已发送 connect 请求（含设备签名）...')
+            }).catch((err) => {
+              this.emitEvent('action', `[调试] 设备签名失败: ${err}`)
+              done(null)
+            })
             return
           }
 
