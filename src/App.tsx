@@ -4,12 +4,13 @@ import ExperimentList from './components/ExperimentList'
 import ExperimentForm from './components/ExperimentForm'
 import ExperimentDetail from './components/ExperimentDetail'
 import Settings from './components/Settings'
+import OpenClawDebugPanel from './components/OpenClawDebugPanel'
 import { saveExperiments, loadExperiments, saveSkills, loadSkills, generateSkillDraft } from './utils'
 import { createEvent } from './services/experimentActions'
 import { createRunner, RunnerType, IExperimentRunner } from './services/runners'
 
 function App() {
-  const [view, setView] = useState<'list' | 'create' | 'detail' | 'settings'>('list')
+  const [view, setView] = useState<'list' | 'create' | 'detail' | 'settings' | 'openclaw-debug'>('list')
   const [selectedId, setSelectedId] = useState<string>('')
   const [experiments, setExperiments] = useState<Experiment[]>([])
   const [skills, setSkills] = useState<SkillDraft[]>([])
@@ -135,6 +136,7 @@ function App() {
               <option value="openclaw">OpenClaw（本地 Gateway）</option>
             </select>
           </label>
+          <button onClick={() => setView('openclaw-debug')} style={{ marginRight: 6 }}>OpenClaw 调试</button>
           <button onClick={() => setView('settings')}>设置</button>
         </div>
       </div>
@@ -151,6 +153,7 @@ function App() {
         onGenerateSkill={handleGenerateSkill}
       />}
       {view === 'settings' && <Settings onBack={() => setView('list')} />}
+      {view === 'openclaw-debug' && <OpenClawDebugPanel onBack={() => setView('list')} />}
     </div>
   )
 }

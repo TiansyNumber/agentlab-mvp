@@ -169,6 +169,41 @@ src/
 - `openclaw_gateway_url`: OpenClaw Gateway URL（用于 OpenClawRunner）
 - `openclaw_gateway_token`: OpenClaw Gateway Token（用于 OpenClawRunner）
 
+---
+
+## 本地 OpenClaw 调试测试
+
+### 入口
+点击页面右上角 **"OpenClaw 调试"** 按钮，进入调试面板。无需创建实验表单。
+
+### 默认配置
+- Gateway URL：`ws://localhost:18889`
+- Token：从 `openclaw config get gateway.auth` 获取，填入面板或在"设置"中保存
+
+### 使用步骤
+1. 确保本地 OpenClaw Gateway 正在运行（`openclaw health` 验证）
+2. 获取 Token：`openclaw config get gateway.auth`
+3. 打开 AgentLab，点击右上角 **"OpenClaw 调试"**
+4. 填写 Gateway URL（默认已填）和 Token
+5. 可修改测试消息（默认：`你好，请回复一句话确认连接正常。`）
+6. 点击 **"运行测试"**
+
+### 面板能验证什么
+| 验证项 | 说明 |
+|--------|------|
+| ✅ WebSocket 连接 | 能否连上 `ws://localhost:18889` |
+| ✅ connect 握手 | token 是否被 Gateway 接受 |
+| ✅ agent 消息发送 | OpenClawRunner 主路径是否正常走通 |
+| ✅ 响应内容 | 返回的 timeline 事件和文本内容 |
+| ✅ 失败原因分类 | 连接失败 / token 错误 / 超时 / 空响应 |
+
+### 面板不能验证什么
+- OpenClaw 内部 agent 逻辑是否正确（取决于 Gateway 实现）
+- 工具调用是否生效（当前 Runner 不支持工具调用事件映射）
+- 流式事件（当前等待完整响应后才写入时间线）
+
+---
+
 ## 下一步建议
 
 1. **增强 AnthropicRunner**
