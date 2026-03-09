@@ -12,6 +12,58 @@ AgentLab 是一个 **Agent 实验管理平台**，负责：
 
 ---
 
+## V2 架构（当前开发方向）
+
+### 三层架构
+
+```
+┌─────────────────────────────────────────┐
+│  AgentLab Frontend (Cloudflare Pages)   │
+│  - 实验定义 UI                           │
+│  - 事件时间线展示                        │
+│  - 人工介入控制                          │
+└────────────────┬────────────────────────┘
+                 │ HTTPS
+                 ↓
+┌─────────────────────────────────────────┐
+│  AgentLab Backend (Cloudflare Workers)  │
+│  - Runtime Registry                      │
+│  - Experiment Control API                │
+│  - Event Timeline Storage                │
+└────────────────┬────────────────────────┘
+                 │ HTTP/gRPC
+                 ↓
+┌─────────────────────────────────────────┐
+│  OpenClaw Runtime Adapter (Node.js)     │
+│  - Device Signature Generation           │
+│  - Gateway WebSocket Management          │
+│  - Event Stream Processing               │
+└────────────────┬────────────────────────┘
+                 │ WebSocket
+                 ↓
+┌─────────────────────────────────────────┐
+│  OpenClaw Gateway (External)            │
+└─────────────────────────────────────────┘
+```
+
+### 关键边界
+
+**Cloudflare-Ready 层**：
+- Frontend (Pages)
+- Backend API (Workers)
+- 无状态 HTTP 请求处理
+- D1/KV 数据持久化
+
+**非 Cloudflare 层**：
+- OpenClaw Runtime Adapter
+- 长连接 WebSocket 管理
+- 设备私钥签名生成
+- 有状态会话管理
+
+详见 `backend/CLOUDFLARE_ARCHITECTURE.md`
+
+---
+
 ## Runtime 架构
 
 ### 设计原则
