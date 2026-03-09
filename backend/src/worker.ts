@@ -19,6 +19,11 @@ export default {
     }
 
     try {
+      // Health check
+      if (url.pathname === '/health' && request.method === 'GET') {
+        return Response.json({ status: 'ok' }, { headers: corsHeaders });
+      }
+
       // Runtime Registry endpoints
       if (url.pathname === '/api/runtimes' && request.method === 'POST') {
         const body = await request.json();
