@@ -25,7 +25,14 @@ export default {
       if (url.pathname === '/api/runtimes' && request.method === 'GET') {
         const owner = url.searchParams.get('owner') || undefined;
         const runtimes = await listRuntimes(owner);
-        return Response.json(runtimes);
+        return Response.json(runtimes.map(r => ({
+          id: r.runtime_id,
+          owner: r.owner,
+          type: r.runtime_type,
+          capabilities: r.capabilities,
+          status: r.status,
+          last_heartbeat: new Date(r.last_heartbeat_at).toISOString()
+        })));
       }
 
       // Experiment Control endpoints
@@ -34,7 +41,14 @@ export default {
         const runtime = await getRuntime(body.runtime_id);
         if (!runtime) return Response.json({ error: 'Runtime not found' }, { status: 404 });
         const exp = await startExperiment(body.runtime_id, body.owner, body.task, runtime);
-        return Response.json(exp);
+        return Response.json({
+          id: exp.experiment_id,
+          runtime_id: exp.runtime_id,
+          owner: exp.owner,
+          task: exp.task,
+          status: exp.status,
+          created_at: new Date(exp.created_at).toISOString()
+        });
       }
 
       if (url.pathname.match(/^\/api\/experiments\/(.+)\/stop$/) && request.method === 'POST') {
@@ -46,7 +60,13 @@ export default {
       if (url.pathname.match(/^\/api\/experiments\/(.+)\/events$/) && request.method === 'GET') {
         const id = url.pathname.split('/')[3];
         const events = await getExperimentEvents(id);
-        return Response.json(events);
+        return Response.json(events.map(e => ({
+          id: e.event_id,
+          experiment_id: e.experiment_id,
+          type: e.type,
+          message: JSON.stringify(e.data),
+          timestamp: new Date(e.timestamp).toISOString()
+        })));
       }
 
       return new Response('Not found', { status: 404 });

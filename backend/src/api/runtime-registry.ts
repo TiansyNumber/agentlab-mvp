@@ -4,20 +4,19 @@ import type { Runtime, RuntimeHeartbeat, RuntimeRegistration } from '../models/r
 // In-memory store (replace with D1/KV in production)
 const runtimes = new Map<string, Runtime>();
 
-function validateRegistration(req: RuntimeRegistration): void {
-  if (!req.display_name?.trim()) throw new Error('display_name required');
-  if (!req.endpoint?.trim()) throw new Error('endpoint required');
+export async function registerRuntime(req: any): Promise<Runtime> {
   if (!req.owner?.trim()) throw new Error('owner required');
-  if (req.max_concurrency < 1) throw new Error('max_concurrency must be >= 1');
-}
-
-export async function registerRuntime(req: RuntimeRegistration): Promise<Runtime> {
-  validateRegistration(req);
 
   const runtime: Runtime = {
     runtime_id: crypto.randomUUID(),
-    ...req,
+    runtime_type: (req.type || 'openclaw') as any,
+    display_name: req.display_name || `Runtime ${Date.now()}`,
+    endpoint: req.endpoint || 'https://openclaw-gateway.example.com',
+    auth_mode: 'none',
+    capabilities: req.capabilities || [],
     status: 'online',
+    owner: req.owner,
+    max_concurrency: req.max_concurrency || 1,
     last_heartbeat_at: Date.now(),
     created_at: Date.now(),
   };
