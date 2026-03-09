@@ -12,8 +12,9 @@ export async function startExperimentWithRuntime(
 ): Promise<void> {
   if (runtime.runtime_type === 'openclaw') {
     const config: OpenClawConfig = {
-      gateway_url: runtime.endpoint,
-      device_id: `runtime-${runtime.runtime_id}`,
+      mode: runtime.runtime_mode,
+      gateway_url: runtime.runtime_mode === 'real' ? runtime.gateway_url : runtime.endpoint,
+      device_id: runtime.runtime_mode === 'real' ? runtime.device_id : `runtime-${runtime.runtime_id}`,
       private_key: 'stub-key', // TODO: retrieve from secure storage
     };
 
