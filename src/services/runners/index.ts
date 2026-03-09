@@ -1,3 +1,6 @@
 export type { IExperimentRunner, RunnerStatus } from './types'
 export { MockRunner } from './MockRunner'
+export { AnthropicRunner } from './AnthropicRunner'
 export { OpenClawRunner } from './OpenClawRunner'
+export { createRunner } from './RunnerFactory'
+export type { RunnerType } from './RunnerFactory'

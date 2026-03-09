@@ -6,14 +6,14 @@ import ExperimentDetail from './components/ExperimentDetail'
 import Settings from './components/Settings'
 import { saveExperiments, loadExperiments, saveSkills, loadSkills, generateSkillDraft } from './utils'
 import { createEvent } from './services/experimentActions'
-import { MockRunner, OpenClawRunner, IExperimentRunner } from './services/runners'
+import { createRunner, RunnerType, IExperimentRunner } from './services/runners'
 
 function App() {
   const [view, setView] = useState<'list' | 'create' | 'detail' | 'settings'>('list')
   const [selectedId, setSelectedId] = useState<string>('')
   const [experiments, setExperiments] = useState<Experiment[]>([])
   const [skills, setSkills] = useState<SkillDraft[]>([])
-  const [runnerType, setRunnerType] = useState<'mock' | 'openclaw'>('mock')
+  const [runnerType, setRunnerType] = useState<RunnerType>('mock')
   const runnerRef = useRef<IExperimentRunner | null>(null)
 
   useEffect(() => {
@@ -63,7 +63,7 @@ function App() {
     if (!exp) return
 
     if (!runnerRef.current) {
-      runnerRef.current = runnerType === 'openclaw' ? new OpenClawRunner() : new MockRunner()
+      runnerRef.current = createRunner(runnerType)
       updateStatus(selectedId, 'running')
       await runnerRef.current.start(exp, (event) => {
         addEvent(selectedId, event)
@@ -129,9 +129,10 @@ function App() {
         <div>
           <label style={{ marginRight: '10px' }}>
             Runner:
-            <select value={runnerType} onChange={(e) => setRunnerType(e.target.value as 'mock' | 'openclaw')} style={{ marginLeft: '5px' }}>
-              <option value="mock">Mock</option>
-              <option value="openclaw">OpenClaw</option>
+            <select value={runnerType} onChange={(e) => setRunnerType(e.target.value as RunnerType)} style={{ marginLeft: '5px' }}>
+              <option value="mock">Mock（模拟）</option>
+              <option value="anthropic">Anthropic（直连 Claude API）</option>
+              <option value="openclaw">OpenClaw（本地 Gateway）</option>
             </select>
           </label>
           <button onClick={() => setView('settings')}>设置</button>
