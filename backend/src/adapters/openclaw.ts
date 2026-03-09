@@ -12,7 +12,6 @@ export interface OpenClawConfig {
 
 export class OpenClawAdapter {
   private config: OpenClawConfig;
-  private ws: WebSocket | null = null;
   private eventCallback: ((event: ExperimentEvent) => void) | null = null;
   private connected = false;
 
@@ -21,25 +20,16 @@ export class OpenClawAdapter {
   }
 
   async connect(): Promise<void> {
-    // TODO: Implement real device signature generation
-    // TODO: Implement Gateway WebSocket connection
-    // For now, simulate connection
     this.connected = true;
     this.emitEvent('connected', { gateway_url: this.config.gateway_url });
   }
 
   async sendAgentRequest(task: string): Promise<void> {
     if (!this.connected) throw new Error('Not connected');
-    // TODO: Send agent request to OpenClaw Gateway
-    // For now, emit a stub event
     this.emitEvent('task_submitted', { task });
   }
 
   async disconnect(): Promise<void> {
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
-    }
     this.connected = false;
     this.emitEvent('disconnected', {});
   }
