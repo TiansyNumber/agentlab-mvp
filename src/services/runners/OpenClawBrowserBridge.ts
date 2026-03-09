@@ -1,7 +1,12 @@
 /**
- * OpenClawRunner
+ * OpenClawBrowserBridge
  *
- * 通过 OpenClaw Gateway WebSocket 接口执行 Agent 任务。
+ * ⚠️ 这是一个验证工具，不是产品级 Runtime 集成方案。
+ *
+ * 用途：在浏览器环境中直连本地 OpenClaw Gateway，用于快速验证协议对齐。
+ * 限制：使用伪签名（浏览器无法生成真实设备签名），仅适用于本地开发/测试。
+ *
+ * 产品级方案应该是：AgentLab 后端 → OpenClaw Runtime API（非浏览器直连）
  *
  * 协议要求（基于 /usr/local/lib/node_modules/openclaw/docs/gateway/protocol.md）：
  *
@@ -122,7 +127,7 @@ const GATEWAY_SCOPES = [
   'operator.pairing',
 ]
 
-export class OpenClawRunner implements IExperimentRunner {
+export class OpenClawBrowserBridge implements IExperimentRunner {
   private status: RunnerStatus = { isRunning: false, currentStep: 0, tokensUsed: 0, elapsedMs: 0 }
   private experiment: Experiment | null = null
   private onEvent: ((event: Event) => void) | null = null

@@ -133,7 +133,7 @@ function App() {
             <select value={runnerType} onChange={(e) => setRunnerType(e.target.value as RunnerType)} style={{ marginLeft: '5px' }}>
               <option value="mock">Mock（模拟）</option>
               <option value="anthropic">Anthropic（直连 Claude API）</option>
-              <option value="openclaw">OpenClaw（本地 Gateway）</option>
+              <option value="openclaw-bridge">OpenClaw Bridge（验证工具）</option>
             </select>
           </label>
           <button onClick={() => setView('openclaw-debug')} style={{ marginRight: 6 }}>OpenClaw 调试</button>

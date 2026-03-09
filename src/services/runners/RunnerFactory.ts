@@ -6,9 +6,9 @@
 import { IExperimentRunner } from './types'
 import { MockRunner } from './MockRunner'
 import { AnthropicRunner } from './AnthropicRunner'
-import { OpenClawRunner } from './OpenClawRunner'
+import { OpenClawBrowserBridge } from './OpenClawBrowserBridge'
 
-export type RunnerType = 'mock' | 'anthropic' | 'openclaw'
+export type RunnerType = 'mock' | 'anthropic' | 'openclaw-bridge'
 
 export function createRunner(type: RunnerType): IExperimentRunner {
   switch (type) {
@@ -16,8 +16,8 @@ export function createRunner(type: RunnerType): IExperimentRunner {
       return new MockRunner()
     case 'anthropic':
       return new AnthropicRunner()
-    case 'openclaw':
-      return new OpenClawRunner()
+    case 'openclaw-bridge':
+      return new OpenClawBrowserBridge()
     default:
       return new MockRunner()
   }

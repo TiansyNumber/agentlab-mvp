@@ -2,7 +2,7 @@
  * OpenClawDebugPanel
  *
  * 本地 OpenClaw Gateway 调试面板。
- * 绕过实验表单，直接构造固定参数调用 OpenClawRunner，验证连通性。
+ * 绕过实验表单，直接构造固定参数调用 OpenClawBrowserBridge，验证连通性。
  *
  * 能验证：
  * - WebSocket 是否能连上 Gateway
@@ -16,7 +16,7 @@
  * - 流式事件（当前等待完整响应）
  */
 import { useState, useRef } from 'react'
-import { OpenClawRunner } from '../services/runners/OpenClawRunner'
+import { OpenClawBrowserBridge } from '../services/runners/OpenClawBrowserBridge'
 import { Event } from '../types'
 
 type Phase = 'idle' | 'running' | 'done'
@@ -41,7 +41,7 @@ export default function OpenClawDebugPanel({ onBack }: { onBack: () => void }) {
   const [phase, setPhase] = useState<Phase>('idle')
   const [events, setEvents] = useState<Event[]>([])
   const [diag, setDiag] = useState<DiagResult[]>([])
-  const runnerRef = useRef<OpenClawRunner | null>(null)
+  const runnerRef = useRef<OpenClawBrowserBridge | null>(null)
 
   const addEvent = (e: Event) => setEvents(prev => [...prev, e])
   const addDiag = (d: DiagResult) => setDiag(prev => [...prev, d])
@@ -52,7 +52,7 @@ export default function OpenClawDebugPanel({ onBack }: { onBack: () => void }) {
       return
     }
 
-    // 保存到 localStorage 供 OpenClawRunner 读取
+    // 保存到 localStorage 供 OpenClawBrowserBridge 读取
     localStorage.setItem('openclaw_gateway_url', gatewayUrl)
     localStorage.setItem('openclaw_gateway_token', token)
 
@@ -60,7 +60,7 @@ export default function OpenClawDebugPanel({ onBack }: { onBack: () => void }) {
     setDiag([])
     setPhase('running')
 
-    // 先做一次原始 WebSocket 诊断，再走 OpenClawRunner 主路径
+    // 先做一次原始 WebSocket 诊断，再走 OpenClawBrowserBridge 主路径
     await runDiagnostic(gatewayUrl, token, message)
   }
 
@@ -82,10 +82,10 @@ export default function OpenClawDebugPanel({ onBack }: { onBack: () => void }) {
       return
     }
 
-    // --- Phase 2: 走 OpenClawRunner 主路径 ---
-    addDiag({ phase: 'agent', ok: true, detail: '开始通过 OpenClawRunner 发送 agent 消息...' })
+    // --- Phase 2: 走 OpenClawBrowserBridge 主路径 ---
+    addDiag({ phase: 'agent', ok: true, detail: '开始通过 OpenClawBrowserBridge 发送 agent 消息...' })
 
-    const runner = new OpenClawRunner()
+    const runner = new OpenClawBrowserBridge()
     runnerRef.current = runner
 
     // 构造最小实验对象
@@ -144,7 +144,7 @@ export default function OpenClawDebugPanel({ onBack }: { onBack: () => void }) {
       </div>
 
       <div style={{ background: '#f5f5f5', padding: 16, borderRadius: 8, marginBottom: 20, fontSize: 13, color: '#555' }}>
-        <strong>用途：</strong>绕过实验表单，直接验证 AgentLab → OpenClawRunner → 本地 Gateway 的连通性。<br />
+        <strong>用途：</strong>绕过实验表单，直接验证 AgentLab → OpenClawBrowserBridge → 本地 Gateway 的连通性。<br />
         <strong>默认端口：</strong>18889 &nbsp;|&nbsp;
         <strong>获取 Token：</strong><code>openclaw config get gateway.auth</code>
       </div>
