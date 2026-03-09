@@ -14,6 +14,7 @@ export class OpenClawAdapter {
   private config: OpenClawConfig;
   private eventCallback: ((event: ExperimentEvent) => void) | null = null;
   private connected = false;
+  private simulationTimer: any = null;
 
   constructor(config: OpenClawConfig) {
     this.config = config;
@@ -21,17 +22,39 @@ export class OpenClawAdapter {
 
   async connect(): Promise<void> {
     this.connected = true;
-    this.emitEvent('connected', { gateway_url: this.config.gateway_url });
+    this.emitEvent('connected', { message: 'Connected to OpenClaw Gateway (stub)' });
   }
 
   async sendAgentRequest(task: string): Promise<void> {
     if (!this.connected) throw new Error('Not connected');
     this.emitEvent('task_submitted', { task });
+
+    // Simulate agent execution with events
+    this.simulateExecution(task);
+  }
+
+  private simulateExecution(task: string): void {
+    let step = 0;
+    this.simulationTimer = setInterval(() => {
+      step++;
+      if (step === 1) {
+        this.emitEvent('agent_thinking', { message: 'Analyzing task...' });
+      } else if (step === 2) {
+        this.emitEvent('agent_action', { message: 'Executing step 1: Reading files' });
+      } else if (step === 3) {
+        this.emitEvent('agent_action', { message: 'Executing step 2: Processing data' });
+      } else if (step === 4) {
+        this.emitEvent('agent_response', { message: `Task completed: ${task.substring(0, 50)}...` });
+        this.emitEvent('experiment_completed', { status: 'success' });
+        clearInterval(this.simulationTimer);
+      }
+    }, 2000);
   }
 
   async disconnect(): Promise<void> {
     this.connected = false;
-    this.emitEvent('disconnected', {});
+    if (this.simulationTimer) clearInterval(this.simulationTimer);
+    this.emitEvent('disconnected', { message: 'Disconnected from Gateway' });
   }
 
   onEvent(callback: (event: ExperimentEvent) => void): void {
@@ -42,7 +65,7 @@ export class OpenClawAdapter {
     if (this.eventCallback) {
       this.eventCallback({
         event_id: crypto.randomUUID(),
-        experiment_id: '', // Will be set by caller
+        experiment_id: '',
         timestamp: Date.now(),
         type,
         data,

@@ -58,13 +58,22 @@ function App() {
       addEvent(expId, createEvent('action', `后端实验已启动: ${result.id}`));
       updateStatus(expId, 'running');
 
-      // Poll for events
+      let lastEventCount = 0;
       const pollEvents = setInterval(async () => {
         try {
           const events = await api.getExperimentEvents(result.id);
-          events.forEach(e => {
-            addEvent(expId, createEvent('action', `[${e.type}] ${e.message}`));
-          });
+          if (events.length > lastEventCount) {
+            events.slice(lastEventCount).forEach(e => {
+              const msg = typeof e.message === 'string' ? e.message : JSON.stringify(JSON.parse(e.message));
+              addEvent(expId, createEvent('action', `[${e.type}] ${msg}`));
+
+              if (e.type === 'experiment_completed') {
+                updateStatus(expId, 'success');
+                clearInterval(pollEvents);
+              }
+            });
+            lastEventCount = events.length;
+          }
         } catch (err) {
           console.error('Poll events error:', err);
         }
