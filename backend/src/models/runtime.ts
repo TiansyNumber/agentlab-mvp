@@ -3,10 +3,12 @@
 export type RuntimeStatus = 'online' | 'offline' | 'degraded';
 export type RuntimeType = 'openclaw' | 'anthropic' | 'mock';
 export type AuthMode = 'token' | 'device_signature' | 'none';
+export type RuntimeMode = 'demo' | 'simulated' | 'real';
 
 export interface Runtime {
   runtime_id: string;
   runtime_type: RuntimeType;
+  runtime_mode: RuntimeMode;
   display_name: string;
   endpoint: string;
   auth_mode: AuthMode;
@@ -17,6 +19,9 @@ export interface Runtime {
   max_concurrency: number;
   last_heartbeat_at: number;
   created_at: number;
+  // Real OpenClaw runtime fields (only for runtime_mode='real')
+  device_id?: string;
+  gateway_url?: string;
 }
 
 export interface RuntimeHeartbeat {
@@ -28,6 +33,7 @@ export interface RuntimeHeartbeat {
 
 export interface RuntimeRegistration {
   runtime_type: RuntimeType;
+  runtime_mode: RuntimeMode;
   display_name: string;
   endpoint: string;
   auth_mode: AuthMode;
@@ -35,4 +41,7 @@ export interface RuntimeRegistration {
   max_concurrency: number;
   owner: string;
   tenant?: string;
+  // Real OpenClaw runtime fields (required when runtime_mode='real')
+  device_id?: string;
+  gateway_url?: string;
 }

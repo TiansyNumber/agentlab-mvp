@@ -3,11 +3,13 @@
 // It handles device signature generation and Gateway communication
 
 import type { ExperimentEvent } from '../models/experiment';
+import type { RuntimeMode } from '../models/runtime';
 
 export interface OpenClawConfig {
-  gateway_url: string;
-  device_id: string;
-  private_key: string; // Real device private key (NOT exposed to browser)
+  mode: RuntimeMode;
+  gateway_url?: string;
+  device_id?: string;
+  private_key?: string; // Real device private key (NOT exposed to browser)
 }
 
 export class OpenClawAdapter {
@@ -18,11 +20,21 @@ export class OpenClawAdapter {
 
   constructor(config: OpenClawConfig) {
     this.config = config;
+    if (config.mode === 'real' && (!config.gateway_url || !config.device_id)) {
+      throw new Error('Real mode requires gateway_url and device_id');
+    }
   }
 
   async connect(): Promise<void> {
+    if (this.config.mode === 'real') {
+      // TODO: Real Gateway connection with device signature
+      throw new Error('Real OpenClaw Gateway connection not yet implemented');
+    }
     this.connected = true;
-    this.emitEvent('connected', { message: 'Connected to OpenClaw Gateway (stub)' });
+    const msg = this.config.mode === 'demo'
+      ? 'Connected (demo mode)'
+      : `Connected (simulated mode)`;
+    this.emitEvent('connected', { message: msg, mode: this.config.mode });
   }
 
   async sendAgentRequest(task: string): Promise<void> {

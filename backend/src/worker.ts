@@ -29,9 +29,12 @@ export default {
           id: r.runtime_id,
           owner: r.owner,
           type: r.runtime_type,
+          mode: r.runtime_mode,
           capabilities: r.capabilities,
           status: r.status,
-          last_heartbeat: new Date(r.last_heartbeat_at).toISOString()
+          last_heartbeat: new Date(r.last_heartbeat_at).toISOString(),
+          device_id: r.device_id,
+          gateway_url: r.gateway_url
         })));
       }
 

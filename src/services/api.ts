@@ -4,9 +4,12 @@ export interface Runtime {
   id: string;
   owner: string;
   type: string;
+  mode: 'demo' | 'simulated' | 'real';
   capabilities: string[];
   status: string;
   last_heartbeat: string;
+  device_id?: string;
+  gateway_url?: string;
 }
 
 export interface ExperimentStartRequest {
@@ -33,7 +36,7 @@ export interface ExperimentEvent {
 }
 
 export const api = {
-  async registerRuntime(data: { owner: string; type: string; capabilities: string[] }): Promise<Runtime> {
+  async registerRuntime(data: { owner: string; type: string; runtime_mode: string; capabilities: string[]; device_id?: string; gateway_url?: string }): Promise<Runtime> {
     const res = await fetch(`${API_BASE}/api/runtimes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

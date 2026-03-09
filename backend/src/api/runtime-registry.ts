@@ -7,18 +7,29 @@ const runtimes = new Map<string, Runtime>();
 export async function registerRuntime(req: any): Promise<Runtime> {
   if (!req.owner?.trim()) throw new Error('owner required');
 
+  const mode = req.runtime_mode || 'demo';
+
+  // Validate real runtime requirements
+  if (mode === 'real') {
+    if (!req.device_id?.trim()) throw new Error('device_id required for real runtime');
+    if (!req.gateway_url?.trim()) throw new Error('gateway_url required for real runtime');
+  }
+
   const runtime: Runtime = {
     runtime_id: crypto.randomUUID(),
     runtime_type: (req.type || 'openclaw') as any,
+    runtime_mode: mode,
     display_name: req.display_name || `Runtime ${Date.now()}`,
     endpoint: req.endpoint || 'https://openclaw-gateway.example.com',
-    auth_mode: 'none',
+    auth_mode: mode === 'real' ? 'device_signature' : 'none',
     capabilities: req.capabilities || [],
     status: 'online',
     owner: req.owner,
     max_concurrency: req.max_concurrency || 1,
     last_heartbeat_at: Date.now(),
     created_at: Date.now(),
+    device_id: req.device_id,
+    gateway_url: req.gateway_url,
   };
   runtimes.set(runtime.runtime_id, runtime);
   return runtime;
