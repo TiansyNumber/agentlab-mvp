@@ -2,51 +2,104 @@
  * OpenClawRunner
  *
  * 通过 OpenClaw Gateway WebSocket 接口执行 Agent 任务。
- * 接入方式：ws://localhost:<port>，token 认证，调用 agent 方法。
  *
- * 当前状态：最小闭环已打通
- * - ✅ 通过 Gateway WebSocket 发送 agent 消息
- * - ✅ 获取 agent 响应并映射到时间线事件
- * - ✅ 资源限制检查（maxSteps、maxTokens、maxDuration）
- * - ⚠️ 暂停/恢复为简化实现（停止当前轮次，重新开始）
- * - ⚠️ 需要本地 OpenClaw Gateway 运行（默认 localhost:18889）
- * - ⚠️ 需要在设置中配置 Gateway Token
+ * 真实 Gateway 协议（逆向自 /usr/local/lib/node_modules/openclaw/dist/call-CbaJN9rS.js）：
  *
- * 阻塞点（如果无法打通）：
- * - Gateway 仅绑定 loopback，浏览器可直接访问 localhost
- * - 需要用户在设置中填写 Gateway Token（从 openclaw config get gateway.auth 获取）
- * - Gateway 的 WebSocket 协议为私有协议，本实现基于逆向分析
+ * 1. WebSocket 连接建立后，Gateway 先发送 connect.challenge 事件：
+ *    { type: "event", event: "connect.challenge", payload: { nonce: "..." } }
+ *
+ * 2. 客户端收到 challenge 后，发送 connect 请求：
+ *    { type: "req", id: "<uuid>", method: "connect", params: {
+ *        minProtocol: 3, maxProtocol: 3,
+ *        client: { id: "cli", version: "1.0.0", platform: "browser", mode: "cli" },
+ *        auth: { token: "<gateway_token>" },
+ *        role: "operator",
+ *        scopes: ["operator.admin", "operator.read", "operator.write", ...],
+ *        caps: []
+ *    }}
+ *
+ * 3. Gateway 响应 hello-ok：
+ *    { type: "res", id: "<same-uuid>", ok: true, payload: { type: "hello-ok", ... } }
+ *
+ * 4. 客户端发送 agent 请求（需要 expectFinal，先收到 accepted 再收到 final）：
+ *    { type: "req", id: "<uuid>", method: "agent", params: {
+ *        message: "...",
+ *        idempotencyKey: "<uuid>",
+ *        agentId: "main"   // optional
+ *    }}
+ *
+ * 5. Gateway 先响应 accepted：
+ *    { type: "res", id: "<same-uuid>", ok: true, payload: { status: "accepted", runId: "..." } }
+ *    然后响应 final（当 agent 完成时）：
+ *    { type: "res", id: "<same-uuid>", ok: true, payload: { status: "final", ... } }
+ *
+ * 关键修正：
+ * - 所有帧必须有 type 字段（"req" / "res" / "event"）
+ * - connect 不是在 onopen 直接发，而是等 connect.challenge 事件
+ * - agent 请求需要 idempotencyKey（必填 NonEmptyString）
+ * - 响应帧格式是 { type: "res", id, ok, payload }，不是 { id, result }
  */
 import { Experiment, Event } from '../../types'
 import { IExperimentRunner, RunnerStatus } from './types'
 
-// Gateway WebSocket 消息类型（基于 openclaw gateway call 协议分析）
-interface GatewayRequest {
+// 真实 Gateway 帧格式
+interface ReqFrame {
+  type: 'req'
   id: string
   method: string
-  params: Record<string, unknown>
+  params?: unknown
 }
 
-interface GatewayResponse {
-  id?: string
-  method?: string
-  result?: {
-    payloads?: Array<{ text: string; mediaUrl: string | null }>
-    meta?: {
-      durationMs: number
-      agentMeta?: {
-        sessionId: string
-        model: string
-        usage: { input: number; output: number; total: number }
-      }
-      aborted?: boolean
-    }
-  }
-  error?: { message: string; code?: number }
-  // streaming events
-  event?: string
-  data?: unknown
+interface ResFrame {
+  type: 'res'
+  id: string
+  ok: boolean
+  payload?: unknown
+  error?: { code?: string; message: string }
 }
+
+interface EventFrame {
+  type: 'event'
+  event: string
+  payload?: unknown
+  seq?: number
+}
+
+type GatewayFrame = ReqFrame | ResFrame | EventFrame
+
+// agent 方法的 payload 结构（final 响应）
+interface AgentFinalPayload {
+  status?: string
+  runId?: string
+  reply?: string
+  text?: string
+  payloads?: Array<{ text: string; mediaUrl: string | null }>
+  meta?: {
+    durationMs?: number
+    agentMeta?: {
+      sessionId?: string
+      model?: string
+      usage?: { input: number; output: number; total: number }
+    }
+    aborted?: boolean
+  }
+}
+
+function randomUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
+
+const GATEWAY_SCOPES = [
+  'operator.admin',
+  'operator.read',
+  'operator.write',
+  'operator.approvals',
+  'operator.pairing',
+]
 
 export class OpenClawRunner implements IExperimentRunner {
   private status: RunnerStatus = { isRunning: false, currentStep: 0, tokensUsed: 0, elapsedMs: 0 }
@@ -81,7 +134,6 @@ export class OpenClawRunner implements IExperimentRunner {
   private async runAgentLoop(gatewayUrl: string, gatewayToken: string): Promise<void> {
     if (!this.experiment) return
 
-    // 第一轮：发送实验描述作为初始消息
     const initialMessage = this.buildInitialMessage()
 
     while (!this.shouldStop && this.status.isRunning) {
@@ -101,27 +153,31 @@ export class OpenClawRunner implements IExperimentRunner {
         return
       }
 
-      // 更新 token 统计
       if (result.meta?.agentMeta?.usage) {
         this.status.tokensUsed += result.meta.agentMeta.usage.total
       }
 
-      // 保存 sessionId 用于多轮对话
       if (result.meta?.agentMeta?.sessionId) {
         this.sessionId = result.meta.agentMeta.sessionId
       }
 
-      const responseText = result.payloads?.map(p => p.text).join('\n') || ''
-      this.emitEvent('action', `步骤 ${this.status.currentStep}: ${responseText.slice(0, 150)}${responseText.length > 150 ? '...' : ''}`)
+      const responseText =
+        result.reply ||
+        result.text ||
+        result.payloads?.map((p) => p.text).join('\n') ||
+        ''
 
-      // 检查是否完成
+      this.emitEvent(
+        'action',
+        `步骤 ${this.status.currentStep}: ${responseText.slice(0, 150)}${responseText.length > 150 ? '...' : ''}`
+      )
+
       if (this.isTaskComplete(responseText)) {
         this.emitEvent('success', '任务完成（成功标准匹配）')
         this.status.isRunning = false
         return
       }
 
-      // 如果 agent 自然结束（aborted=false 且无更多内容）
       if (result.meta?.aborted === false && this.status.currentStep >= 2) {
         this.emitEvent('success', 'Agent 执行完成')
         this.status.isRunning = false
@@ -140,11 +196,15 @@ export class OpenClawRunner implements IExperimentRunner {
     ].join('\n')
   }
 
+  /**
+   * 与 Gateway 建立 WebSocket 连接，完成 challenge→connect 握手，
+   * 然后发送 agent 请求，等待 final 响应。
+   */
   private async callGatewayAgent(
     gatewayUrl: string,
     token: string,
     message: string
-  ): Promise<GatewayResponse['result'] | null> {
+  ): Promise<AgentFinalPayload | null> {
     return new Promise((resolve) => {
       const wsUrl = gatewayUrl.replace(/^http/, 'ws')
       let ws: WebSocket
@@ -157,81 +217,147 @@ export class OpenClawRunner implements IExperimentRunner {
       }
 
       this.ws = ws
-      const reqId = Date.now().toString()
       let resolved = false
+      let connectId: string | null = null
+      let agentId: string | null = null
+      let connectDone = false
+
+      const done = (result: AgentFinalPayload | null) => {
+        if (resolved) return
+        resolved = true
+        clearTimeout(timeout)
+        try { ws.close() } catch { /* ignore */ }
+        resolve(result)
+      }
 
       const timeout = setTimeout(() => {
         if (!resolved) {
-          resolved = true
-          ws.close()
-          resolve(null)
+          this.emitEvent('action', '[调试] Gateway 请求超时（60s）')
+          done(null)
         }
       }, 60000)
 
       ws.onopen = () => {
-        // OpenClaw Gateway 协议：连接后发送 connect 消息（含 token）
-        const connectMsg: GatewayRequest = {
-          id: 'connect-' + reqId,
-          method: 'connect',
-          params: token ? { auth: { token } } : {}
-        }
-        ws.send(JSON.stringify(connectMsg))
+        // 等待 connect.challenge 事件，不主动发送任何内容
+        this.emitEvent('action', '[调试] WebSocket 已连接，等待 connect.challenge...')
       }
 
       ws.onmessage = (evt) => {
-        let msg: GatewayResponse
+        let frame: GatewayFrame
         try {
-          msg = JSON.parse(evt.data)
+          frame = JSON.parse(evt.data as string) as GatewayFrame
         } catch {
           return
         }
 
-        // 连接确认后发送 agent 请求
-        if (msg.id === 'connect-' + reqId && !msg.error) {
-          const agentReq: GatewayRequest = {
-            id: reqId,
-            method: 'agent',
-            params: {
-              message,
-              agentId: 'main',
-              ...(this.sessionId ? { sessionId: this.sessionId } : {}),
+        // 处理 event 帧
+        if (frame.type === 'event') {
+          const ef = frame as EventFrame
+
+          if (ef.event === 'connect.challenge') {
+            const nonce = (ef.payload as { nonce?: string })?.nonce
+            this.emitEvent('action', `[调试] 收到 connect.challenge，nonce=${nonce ?? '(无)'}`)
+
+            // 发送 connect 请求
+            connectId = randomUUID()
+            const connectReq: ReqFrame = {
+              type: 'req',
+              id: connectId,
+              method: 'connect',
+              params: {
+                minProtocol: 3,
+                maxProtocol: 3,
+                client: {
+                  id: 'cli',
+                  version: '1.0.0',
+                  platform: 'browser',
+                  mode: 'cli',
+                },
+                caps: [],
+                role: 'operator',
+                scopes: GATEWAY_SCOPES,
+                ...(token ? { auth: { token } } : {}),
+              },
             }
+            ws.send(JSON.stringify(connectReq))
+            this.emitEvent('action', '[调试] 已发送 connect 请求...')
+            return
           }
-          ws.send(JSON.stringify(agentReq))
+
+          // tick / 其他事件忽略
           return
         }
 
-        // agent 响应
-        if (msg.id === reqId) {
-          if (msg.error) {
-            resolved = true
-            clearTimeout(timeout)
-            ws.close()
-            resolve(null)
+        // 处理 res 帧
+        if (frame.type === 'res') {
+          const rf = frame as ResFrame
+
+          // connect 响应
+          if (rf.id === connectId && !connectDone) {
+            connectDone = true
+            if (!rf.ok) {
+              const errMsg = rf.error?.message ?? 'connect 失败（未知错误）'
+              this.emitEvent('action', `[调试] connect 失败: ${errMsg}`)
+              done(null)
+              return
+            }
+
+            this.emitEvent('action', '[调试] connect 握手成功，发送 agent 请求...')
+
+            // 发送 agent 请求
+            agentId = randomUUID()
+            const agentReq: ReqFrame = {
+              type: 'req',
+              id: agentId,
+              method: 'agent',
+              params: {
+                message,
+                idempotencyKey: randomUUID(),
+                ...(this.sessionId ? { sessionKey: this.sessionId } : {}),
+              },
+            }
+            ws.send(JSON.stringify(agentReq))
             return
           }
-          if (msg.result) {
-            resolved = true
-            clearTimeout(timeout)
-            ws.close()
-            resolve(msg.result)
+
+          // agent 响应
+          if (rf.id === agentId) {
+            if (!rf.ok) {
+              const errMsg = rf.error?.message ?? 'agent 请求失败（未知错误）'
+              this.emitEvent('action', `[调试] agent 失败: ${errMsg}`)
+              done(null)
+              return
+            }
+
+            const payload = rf.payload as AgentFinalPayload | undefined
+            const status = payload?.status
+
+            // accepted 是中间状态，继续等待 final
+            if (status === 'accepted') {
+              const runId = payload?.runId ?? ''
+              this.emitEvent('action', `[调试] agent 已接受（runId=${runId}），等待 final 响应...`)
+              return
+            }
+
+            // final 或其他终态
+            this.emitEvent('action', `[调试] agent 响应完成（status=${status ?? '无'}）`)
+            done(payload ?? {})
           }
         }
       }
 
-      ws.onerror = () => {
+      ws.onerror = (err) => {
         if (!resolved) {
-          resolved = true
-          clearTimeout(timeout)
-          resolve(null)
+          const msg = err instanceof ErrorEvent ? err.message : 'WebSocket 错误'
+          this.emitEvent('action', `[调试] WebSocket 错误: ${msg}`)
+          done(null)
         }
       }
 
-      ws.onclose = () => {
+      ws.onclose = (evt) => {
         if (!resolved) {
-          resolved = true
-          clearTimeout(timeout)
-          resolve(null)
+          this.emitEvent('action', `[调试] WebSocket 关闭: code=${evt.code} reason=${evt.reason || '(无)'}`)
+          done(null)
         }
       }
     })
@@ -265,7 +391,7 @@ export class OpenClawRunner implements IExperimentRunner {
     if (!this.experiment) return false
     const criteria = this.experiment.successCriteria.toLowerCase()
     const textLower = text.toLowerCase()
-    return criteria.split(/[,，]/).some(c => textLower.includes(c.trim()))
+    return criteria.split(/[,，]/).some((c) => textLower.includes(c.trim()))
   }
 
   async pause(): Promise<void> {
@@ -283,7 +409,7 @@ export class OpenClawRunner implements IExperimentRunner {
     if (this.status.isRunning && this.experiment && this.onEvent) {
       const gatewayUrl = localStorage.getItem('openclaw_gateway_url') || 'ws://localhost:18889'
       const gatewayToken = localStorage.getItem('openclaw_gateway_token') || ''
-      this.runAgentLoop(gatewayUrl, gatewayToken).catch(err => {
+      this.runAgentLoop(gatewayUrl, gatewayToken).catch((err) => {
         this.emitEvent('failed', `恢复执行错误: ${err instanceof Error ? err.message : String(err)}`)
         this.status.isRunning = false
       })
@@ -310,7 +436,7 @@ export class OpenClawRunner implements IExperimentRunner {
         id: Date.now().toString() + Math.random(),
         timestamp: new Date().toLocaleTimeString(),
         type,
-        message
+        message,
       })
     }
   }

@@ -119,20 +119,53 @@ src/
 
 ---
 
-### OpenClawRunner（最小闭环已打通，需本地 Gateway）
+### OpenClawRunner（协议已对齐，需本地 Gateway）
 通过本地 OpenClaw Gateway WebSocket 接口执行 Agent 任务。
 
-**接入方式：**
-- 协议：WebSocket（`ws://localhost:18889`，默认端口）
-- 认证：Token（从 `openclaw config get gateway.auth` 获取）
-- 方法：`connect` → `agent`（多轮对话复用 sessionId）
+**真实 Gateway 协议（逆向自 openclaw 安装包源码）：**
+
+```
+1. WS 连接建立后，Gateway 发送 connect.challenge 事件：
+   { type: "event", event: "connect.challenge", payload: { nonce: "..." } }
+
+2. 客户端发送 connect 请求（必须有 type: "req"）：
+   { type: "req", id: "<uuid>", method: "connect", params: {
+       minProtocol: 3, maxProtocol: 3,
+       client: { id: "cli", version: "1.0.0", platform: "browser", mode: "cli" },
+       auth: { token: "<gateway_token>" },
+       role: "operator",
+       scopes: ["operator.admin", "operator.read", "operator.write", ...],
+       caps: []
+   }}
+
+3. Gateway 响应 hello-ok：
+   { type: "res", id: "<same-uuid>", ok: true, payload: { type: "hello-ok", ... } }
+
+4. 客户端发送 agent 请求（idempotencyKey 必填）：
+   { type: "req", id: "<uuid>", method: "agent", params: {
+       message: "...",
+       idempotencyKey: "<uuid>"
+   }}
+
+5. Gateway 先响应 accepted，再响应 final：
+   { type: "res", id: "<same-uuid>", ok: true, payload: { status: "accepted", runId: "..." } }
+   { type: "res", id: "<same-uuid>", ok: true, payload: { status: "final", ... } }
+```
+
+**关键修正（本轮修复的根本原因）：**
+- 旧实现发送 `{ id, method, params }` → Gateway 返回 `1008 invalid request frame`
+- 新实现所有帧必须有 `type` 字段（`"req"` / `"res"` / `"event"`）
+- connect 不在 `onopen` 直接发，而是等 `connect.challenge` 事件后才发
+- agent 请求必须包含 `idempotencyKey`（NonEmptyString，必填）
+- 响应帧格式是 `{ type: "res", id, ok, payload }`，不是旧的 `{ id, result }`
 
 **已支持功能：**
-- ✅ 通过 Gateway WebSocket 发送 agent 消息
-- ✅ 获取 agent 响应并映射到时间线事件
-- ✅ 多轮对话（复用 sessionId）
+- ✅ 正确的 connect.challenge → connect 握手流程
+- ✅ 正确的 req/res/event 帧格式
+- ✅ agent 请求（含 idempotencyKey）
+- ✅ accepted / final 两阶段响应处理
+- ✅ 调试面板分层错误输出（每步都有 `[调试]` 前缀事件）
 - ✅ 资源限制检查（maxSteps、maxTokens、maxDuration）
-- ✅ Token 使用统计（来自 agentMeta.usage）
 
 **使用方法：**
 1. 确保本地 OpenClaw Gateway 正在运行（`openclaw health` 验证）
@@ -141,16 +174,11 @@ src/
 4. 在 Runner 下拉框中选择"OpenClaw（本地 Gateway）"
 5. 创建并启动实验
 
-**当前限制与阻塞点：**
-- ⚠️ **需要本地 Gateway 运行**：Gateway 默认绑定 loopback（localhost），浏览器可直接访问
-- ⚠️ **Gateway WebSocket 协议为私有协议**：当前实现基于 `openclaw gateway call` 行为分析，connect → agent 消息格式可能随版本变化
+**当前已知限制：**
+- ⚠️ **需要本地 Gateway 运行**：Gateway 默认绑定 loopback，浏览器可直接访问
 - ⚠️ **暂停/恢复为简化实现**：中断当前 WS 连接，恢复时重新开始新轮次
-- ⚠️ **无流式事件**：当前等待完整响应后再写入时间线（Gateway 支持流式，但 WS 协议细节待确认）
-- ⚠️ **未来接 OpenClaw runtime 还缺什么**：
-  - 确认 Gateway WS 协议的完整规范（connect/auth 消息格式）
-  - 支持流式事件（streaming payloads）
-  - 支持工具调用事件映射
-  - 支持 agent 工作区隔离（per-experiment workspace）
+- ⚠️ **无流式事件**：等待 final 响应后才写入时间线
+- ⚠️ **无工具调用事件映射**：agent 内部工具调用不在时间线中展示
 
 ## 技术栈
 
