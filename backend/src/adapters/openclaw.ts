@@ -13,6 +13,8 @@ export interface OpenClawConfig {
 export class OpenClawAdapter {
   private config: OpenClawConfig;
   private ws: WebSocket | null = null;
+  private eventCallback: ((event: ExperimentEvent) => void) | null = null;
+  private connected = false;
 
   constructor(config: OpenClawConfig) {
     this.config = config;
@@ -21,12 +23,16 @@ export class OpenClawAdapter {
   async connect(): Promise<void> {
     // TODO: Implement real device signature generation
     // TODO: Implement Gateway WebSocket connection
-    throw new Error('Not implemented - requires real device signature');
+    // For now, simulate connection
+    this.connected = true;
+    this.emitEvent('connected', { gateway_url: this.config.gateway_url });
   }
 
   async sendAgentRequest(task: string): Promise<void> {
+    if (!this.connected) throw new Error('Not connected');
     // TODO: Send agent request to OpenClaw Gateway
-    throw new Error('Not implemented');
+    // For now, emit a stub event
+    this.emitEvent('task_submitted', { task });
   }
 
   async disconnect(): Promise<void> {
@@ -34,9 +40,23 @@ export class OpenClawAdapter {
       this.ws.close();
       this.ws = null;
     }
+    this.connected = false;
+    this.emitEvent('disconnected', {});
   }
 
   onEvent(callback: (event: ExperimentEvent) => void): void {
-    // TODO: Register event callback for Gateway events
+    this.eventCallback = callback;
+  }
+
+  private emitEvent(type: string, data: any): void {
+    if (this.eventCallback) {
+      this.eventCallback({
+        event_id: crypto.randomUUID(),
+        experiment_id: '', // Will be set by caller
+        timestamp: Date.now(),
+        type,
+        data,
+      });
+    }
   }
 }

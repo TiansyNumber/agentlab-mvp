@@ -1,11 +1,20 @@
 // Experiment Control API - Cloudflare Workers compatible
 import type { Experiment, ExperimentEvent } from '../models/experiment';
+import type { Runtime } from '../models/runtime';
+import { startExperimentWithRuntime, stopExperimentAdapter } from '../services/experiment-manager';
 
 // In-memory store (replace with D1/KV in production)
 const experiments = new Map<string, Experiment>();
 const events = new Map<string, ExperimentEvent[]>();
 
-export async function startExperiment(runtime_id: string, owner: string, task: string): Promise<Experiment> {
+export async function startExperiment(
+  runtime_id: string,
+  owner: string,
+  task: string,
+  runtime: Runtime
+): Promise<Experiment> {
+  if (!task?.trim()) throw new Error('task required');
+
   const experiment: Experiment = {
     experiment_id: crypto.randomUUID(),
     runtime_id,
@@ -17,6 +26,21 @@ export async function startExperiment(runtime_id: string, owner: string, task: s
   };
   experiments.set(experiment.experiment_id, experiment);
   events.set(experiment.experiment_id, []);
+
+  // Connect to runtime adapter
+  const eventHandler = (event: ExperimentEvent) => {
+    addExperimentEvent(experiment.experiment_id, event.type, event.data);
+  };
+
+  try {
+    await startExperimentWithRuntime(experiment, runtime, eventHandler);
+  } catch (err) {
+    experiment.status = 'failed';
+    addExperimentEvent(experiment.experiment_id, 'start_failed', {
+      error: (err as Error).message,
+    });
+  }
+
   return experiment;
 }
 
@@ -25,6 +49,7 @@ export async function stopExperiment(experiment_id: string): Promise<void> {
   if (!exp) throw new Error('Experiment not found');
   exp.status = 'completed';
   exp.completed_at = Date.now();
+  await stopExperimentAdapter(experiment_id);
 }
 
 export async function getExperiment(experiment_id: string): Promise<Experiment | null> {
