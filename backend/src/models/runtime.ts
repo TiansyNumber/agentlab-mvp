@@ -1,9 +1,10 @@
 // Runtime data model for AgentLab V2 platform layer
 
-export type RuntimeStatus = 'online' | 'offline' | 'degraded' | 'stale';
+export type RuntimeStatus = 'online' | 'offline' | 'degraded' | 'stale' | 'reconnecting';
 export type RuntimeType = 'openclaw' | 'anthropic' | 'mock';
 export type AuthMode = 'token' | 'device_signature' | 'none';
 export type RuntimeMode = 'demo' | 'simulated' | 'real';
+export type ConnectionState = 'connected' | 'disconnected' | 'pairing' | 'paired';
 
 export interface Runtime {
   runtime_id: string;
@@ -26,6 +27,8 @@ export interface Runtime {
   // Pairing/binding state for connector V1
   pairing_code?: string;
   paired_at?: number;
+  connection_state?: ConnectionState;
+  reconnect_attempts?: number;
 }
 
 export interface RuntimeHeartbeat {

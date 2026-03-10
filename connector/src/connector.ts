@@ -135,7 +135,7 @@ export class AgentLabConnector {
       auth_mode: 'device_signature',
       capabilities: [],
       max_concurrency: 1,
-      owner: 'local-user',
+      owner: 'auto-paired',
       device_id: this.config.deviceId,
       gateway_url: this.config.gateway
     };
@@ -161,6 +161,52 @@ export class AgentLabConnector {
     const runtime = await res.json();
     this.runtimeId = runtime.runtime_id;
     return runtime;
+  }
+
+  async requestPairing(): Promise<{ pairing_code: string; runtime_id: string }> {
+    const payload = {
+      runtime_type: 'openclaw',
+      runtime_mode: 'real',
+      display_name: this.config.name,
+      device_id: this.config.deviceId,
+    };
+
+    const res = await fetch(`${this.config.backend}/api/pairing/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(10000)
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Pairing request failed (HTTP ${res.status}): ${body}`);
+    }
+
+    const result = await res.json();
+    this.runtimeId = result.runtime_id;
+    return result;
+  }
+
+  async completePairingWithGateway(gatewayUrl: string): Promise<Runtime> {
+    if (!this.runtimeId) throw new Error('No runtime ID - call requestPairing first');
+
+    const res = await fetch(`${this.config.backend}/api/pairing/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        runtime_id: this.runtimeId,
+        gateway_url: gatewayUrl,
+      }),
+      signal: AbortSignal.timeout(10000)
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Pairing completion failed (HTTP ${res.status}): ${body}`);
+    }
+
+    return await res.json();
   }
 
   async sendHeartbeat() {

@@ -4,7 +4,7 @@
 import { registerRuntime, updateHeartbeat, listRuntimes, getRuntime, markRuntimeDisconnected } from './api/runtime-registry';
 import { startExperiment, stopExperiment, getExperiment, getExperimentEvents, retryExperiment, listExperiments } from './api/experiment-control';
 import { compareExperiments } from './api/experiment-compare';
-import { generatePairingCode, completePairing, getPairingStatus } from './api/connector-pairing';
+import { generatePairingCode, completePairing, getPairingStatus, requestPairing, completePairingWithGateway } from './api/connector-pairing';
 import { getRuntimeHealthInfo } from './services/runtime-health';
 
 const corsHeaders = {
@@ -183,6 +183,18 @@ export default {
         const code = url.pathname.split('/')[4];
         const status = getPairingStatus(code);
         return Response.json(status, { headers: corsHeaders });
+      }
+
+      if (url.pathname === '/api/pairing/request' && request.method === 'POST') {
+        const body = await request.json();
+        const result = await requestPairing(body);
+        return Response.json(result, { headers: corsHeaders });
+      }
+
+      if (url.pathname === '/api/pairing/complete' && request.method === 'POST') {
+        const body = await request.json();
+        const runtime = await completePairingWithGateway(body.runtime_id, body.gateway_url);
+        return Response.json(runtime, { headers: corsHeaders });
       }
 
       return new Response('Not found', { status: 404, headers: corsHeaders });
