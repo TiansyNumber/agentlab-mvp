@@ -383,7 +383,8 @@ export class AgentLabConnector {
                   method: 'chat.send',
                   params: {
                     sessionKey: 'agent:main:main',
-                    message: task
+                    message: task,
+                    idempotencyKey: crypto.randomUUID()
                   }
                 };
                 ws.send(JSON.stringify(chatReq));
@@ -397,12 +398,24 @@ export class AgentLabConnector {
             // Handle chat response
             else if (msg.type === 'res' && msg.id === 'chat-1') {
               addEvent('acp_chat_response', { ok: msg.ok });
+              if (!msg.ok) {
+                addEvent('acp_chat_failed', { error: msg.error });
+              }
             }
             // Handle agent events
             else if (msg.type === 'event' && msg.event === 'agent') {
-              addEvent('acp_agent_event', { data: msg.payload });
+              const payload = msg.payload;
+              if (payload.stream === 'lifecycle' && payload.data.phase === 'start') {
+                addEvent('agent_execution_started', { runId: payload.runId, source: 'gateway_ws' });
+              } else if (payload.stream === 'lifecycle' && payload.data.phase === 'end') {
+                addEvent('agent_execution_completed', { runId: payload.runId, source: 'gateway_ws' });
+                exp.status = 'completed';
+                ws.close();
+              } else if (payload.stream === 'assistant') {
+                addEvent('agent_response', { text: payload.data.delta, source: 'gateway_ws' });
+              }
             }
-            // Handle agent events
+            // Handle other events
             else if (msg.type === 'event') {
               addEvent('acp_event', { event: msg.event });
             }
