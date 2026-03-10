@@ -15,6 +15,7 @@ function App() {
   const [view, setView] = useState<'list' | 'create' | 'detail' | 'settings' | 'openclaw-debug' | 'runtime'>('list')
   const [selectedId, setSelectedId] = useState<string>('')
   const [selectedRuntimeId, setSelectedRuntimeId] = useState<string>('')
+  const [selectedRuntimeMode, setSelectedRuntimeMode] = useState<string>('')
   const [experiments, setExperiments] = useState<Experiment[]>([])
   const [skills, setSkills] = useState<SkillDraft[]>([])
   const [runnerType, setRunnerType] = useState<RunnerType>('mock')
@@ -184,7 +185,11 @@ function App() {
               <option value="openclaw-bridge">OpenClaw Bridge（验证工具）</option>
             </select>
           </label>
-          {selectedRuntimeId && <span style={{ marginRight: 10, color: 'green' }}>Runtime: {selectedRuntimeId.slice(0, 8)}</span>}
+          {selectedRuntimeId && (
+            <span style={{ marginRight: 10, color: selectedRuntimeMode === 'real' ? 'green' : '#888', fontWeight: selectedRuntimeMode === 'real' ? 'bold' : 'normal' }}>
+              {selectedRuntimeMode === 'real' ? '🟢 Real Runtime: ' : 'Runtime: '}{selectedRuntimeId.slice(0, 8)}
+            </span>
+          )}
           <button onClick={() => setView('runtime')} style={{ marginRight: 6 }}>Runtime 管理</button>
           <button onClick={() => setView('openclaw-debug')} style={{ marginRight: 6 }}>OpenClaw 调试</button>
           <button onClick={() => setView('settings')}>设置</button>
@@ -205,7 +210,7 @@ function App() {
       />}
       {view === 'settings' && <Settings onBack={() => setView('list')} />}
       {view === 'openclaw-debug' && <OpenClawDebugPanel onBack={() => setView('list')} />}
-      {view === 'runtime' && <RuntimeManager onBack={() => setView('list')} onSelectRuntime={(id) => { setSelectedRuntimeId(id); setView('list'); }} />}
+      {view === 'runtime' && <RuntimeManager onBack={() => setView('list')} onSelectRuntime={(id, mode) => { setSelectedRuntimeId(id); setSelectedRuntimeMode(mode); setView('list'); }} />}
     </div>
   )
 }
