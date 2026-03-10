@@ -171,6 +171,7 @@ export class OpenClawAdapter {
 
     let attempts = 0;
     const maxAttempts = 30;
+    let hasReceivedAction = false;
 
     while (attempts < maxAttempts) {
       try {
@@ -180,6 +181,11 @@ export class OpenClawAdapter {
           const events = await response.json();
           for (const evt of events) {
             this.emitEvent(evt.type, evt.data);
+            // Track if we received any action from agent
+            if (!hasReceivedAction && (evt.type === 'agent_action' || evt.type === 'agent_thinking')) {
+              this.emitEvent('action_received', { experiment_id: experimentId });
+              hasReceivedAction = true;
+            }
           }
 
           // Check if completed or failed

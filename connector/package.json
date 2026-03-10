@@ -9,7 +9,10 @@
     "build": "tsc",
     "start": "node dist/cli.js"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@types/ws": "^8.18.1",
+    "ws": "^8.19.0"
+  },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "typescript": "^5.0.0"
