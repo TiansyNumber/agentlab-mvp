@@ -30,6 +30,14 @@ export async function startExperiment(
   // Connect to runtime adapter
   const eventHandler = (event: ExperimentEvent) => {
     addExperimentEvent(experiment.experiment_id, event.type, event.data);
+    // Update experiment status based on events
+    if (event.type === 'experiment_completed') {
+      experiment.status = 'completed';
+      experiment.completed_at = Date.now();
+    } else if (event.type === 'experiment_failed' || event.type === 'experiment_timeout') {
+      experiment.status = 'failed';
+      experiment.completed_at = Date.now();
+    }
   };
 
   try {

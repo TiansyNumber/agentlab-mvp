@@ -25,16 +25,8 @@ export async function startExperimentWithRuntime(
 
     try {
       await adapter.connect();
-      // Start task in background, don't await
-      adapter.sendAgentRequest(experiment.task).catch(err => {
-        onEvent({
-          event_id: crypto.randomUUID(),
-          experiment_id: experiment.experiment_id,
-          timestamp: Date.now(),
-          type: 'error',
-          data: { message: (err as Error).message },
-        });
-      });
+      // Execute task (will complete quickly with mock fallback)
+      await adapter.sendAgentRequest(experiment.task);
     } catch (err) {
       onEvent({
         event_id: crypto.randomUUID(),
