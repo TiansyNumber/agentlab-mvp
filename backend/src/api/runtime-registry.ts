@@ -1,5 +1,6 @@
 // Runtime Registry API - Cloudflare Workers compatible
 import type { Runtime, RuntimeHeartbeat, RuntimeRegistration } from '../models/runtime';
+import { updateRuntimeHealth } from '../services/runtime-health';
 
 // In-memory store (replace with D1/KV in production)
 const runtimes = new Map<string, Runtime>();
@@ -27,6 +28,7 @@ export async function registerRuntime(req: any): Promise<Runtime> {
     owner: req.owner,
     max_concurrency: req.max_concurrency || 1,
     last_heartbeat_at: Date.now(),
+    last_seen_at: Date.now(),
     created_at: Date.now(),
     device_id: req.device_id,
     gateway_url: req.gateway_url,
@@ -40,10 +42,12 @@ export async function updateHeartbeat(heartbeat: RuntimeHeartbeat): Promise<void
   if (!runtime) throw new Error('Runtime not found');
   runtime.status = heartbeat.status;
   runtime.last_heartbeat_at = heartbeat.timestamp;
+  runtime.last_seen_at = heartbeat.timestamp;
 }
 
 export async function listRuntimes(owner?: string): Promise<Runtime[]> {
   const all = Array.from(runtimes.values());
+  all.forEach(r => updateRuntimeHealth(r));
   return owner ? all.filter(r => r.owner === owner) : all;
 }
 

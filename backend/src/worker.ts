@@ -2,7 +2,9 @@
 // This layer is Cloudflare-ready and handles HTTP requests
 
 import { registerRuntime, updateHeartbeat, listRuntimes, getRuntime } from './api/runtime-registry';
-import { startExperiment, stopExperiment, getExperiment, getExperimentEvents, retryExperiment } from './api/experiment-control';
+import { startExperiment, stopExperiment, getExperiment, getExperimentEvents, retryExperiment, listExperiments } from './api/experiment-control';
+import { compareExperiments } from './api/experiment-compare';
+import { generatePairingCode, completePairing } from './api/connector-pairing';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -99,6 +101,42 @@ export default {
           message: JSON.stringify(e.data),
           timestamp: new Date(e.timestamp).toISOString()
         })), { headers: corsHeaders });
+      }
+
+      if (url.pathname === '/api/experiments' && request.method === 'GET') {
+        const owner = url.searchParams.get('owner') || undefined;
+        const runtime_id = url.searchParams.get('runtime_id') || undefined;
+        const exps = await listExperiments(owner, runtime_id);
+        return Response.json(exps.map(e => ({
+          id: e.experiment_id,
+          runtime_id: e.runtime_id,
+          owner: e.owner,
+          task: e.task,
+          status: e.status,
+          phase: e.phase,
+          failure_reason: e.failure_reason,
+          created_at: new Date(e.created_at).toISOString(),
+          started_at: e.started_at ? new Date(e.started_at).toISOString() : undefined,
+          completed_at: e.completed_at ? new Date(e.completed_at).toISOString() : undefined,
+        })), { headers: corsHeaders });
+      }
+
+      if (url.pathname === '/api/experiments/compare' && request.method === 'POST') {
+        const body = await request.json();
+        const comparison = await compareExperiments(body.experiment_ids);
+        return Response.json(comparison, { headers: corsHeaders });
+      }
+
+      if (url.pathname.match(/^\/api\/runtimes\/(.+)\/pair$/) && request.method === 'POST') {
+        const runtime_id = url.pathname.split('/')[3];
+        const code = await generatePairingCode(runtime_id);
+        return Response.json({ code }, { headers: corsHeaders });
+      }
+
+      if (url.pathname === '/api/connector/pair' && request.method === 'POST') {
+        const body = await request.json();
+        const runtime = await completePairing(body.code, body.device_id);
+        return Response.json({ runtime_id: runtime.runtime_id, paired: true }, { headers: corsHeaders });
       }
 
       return new Response('Not found', { status: 404, headers: corsHeaders });

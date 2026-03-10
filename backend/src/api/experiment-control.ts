@@ -102,6 +102,13 @@ export async function getExperiment(experiment_id: string): Promise<Experiment |
   return experiments.get(experiment_id) || null;
 }
 
+export async function listExperiments(owner?: string, runtime_id?: string): Promise<Experiment[]> {
+  let all = Array.from(experiments.values());
+  if (owner) all = all.filter(e => e.owner === owner);
+  if (runtime_id) all = all.filter(e => e.runtime_id === runtime_id);
+  return all.sort((a, b) => b.created_at - a.created_at);
+}
+
 export async function getExperimentEvents(experiment_id: string, since?: number): Promise<ExperimentEvent[]> {
   const allEvents = events.get(experiment_id) || [];
   if (since !== undefined) {

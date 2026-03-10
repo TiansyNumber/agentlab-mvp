@@ -1,0 +1,22 @@
+// Runtime health tracking utilities
+import type { Runtime, RuntimeStatus } from '../models/runtime';
+
+const STALE_THRESHOLD_MS = 60000; // 1 minute
+const OFFLINE_THRESHOLD_MS = 300000; // 5 minutes
+
+export function calculateRuntimeHealth(runtime: Runtime): RuntimeStatus {
+  const now = Date.now();
+  const timeSinceLastSeen = now - runtime.last_seen_at;
+
+  if (timeSinceLastSeen > OFFLINE_THRESHOLD_MS) {
+    return 'offline';
+  }
+  if (timeSinceLastSeen > STALE_THRESHOLD_MS) {
+    return 'stale';
+  }
+  return runtime.status;
+}
+
+export function updateRuntimeHealth(runtime: Runtime): void {
+  runtime.status = calculateRuntimeHealth(runtime);
+}
