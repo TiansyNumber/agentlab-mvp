@@ -19,7 +19,7 @@ const getArg = (flag: string, defaultValue: string) => {
 };
 
 const config = {
-  backend: getArg('--backend', 'https://agentlab-backend.tianshuyun.workers.dev'),
+  backend: getArg('--backend', 'http://localhost:8787'),
   gateway: getArg('--gateway', 'http://localhost:18889'),
   name: getArg('--name', 'Local OpenClaw')
 };
