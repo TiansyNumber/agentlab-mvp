@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 import { createServer } from 'http';
+import WebSocket from 'ws';
 
 interface ConnectorConfig {
   backend: string;
@@ -277,11 +278,11 @@ export class AgentLabConnector {
     });
   }
 
-  // Dispatch experiment task to OpenClaw gateway via sessions_send tool
+  // Dispatch experiment task to OpenClaw gateway via WebSocket
   private async dispatchToOpenClaw(experimentId: string, task: string): Promise<void> {
     const exp = this.experiments.get(experimentId);
     if (!exp) return;
-    if (exp.dispatched) return;  // Prevent duplicate dispatch
+    if (exp.dispatched) return;
     exp.dispatched = true;
 
     exp.events = [];
@@ -290,23 +291,88 @@ export class AgentLabConnector {
       console.log(`   [${experimentId.substring(0, 8)}] event: ${type}`);
     };
 
-    addEvent('agent_thinking', { message: 'Real runtime processing task...', source: 'real' });
+    const gatewayWsUrl = this.config.gateway.replace(/^http/, 'ws');
+    addEvent('gateway_ws_connecting', { url: gatewayWsUrl });
 
-    // Simulate minimal real execution (replace with actual OpenClaw integration later)
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      const ws = new WebSocket(gatewayWsUrl);
+      let connected = false;
 
-    addEvent('agent_response', {
-      message: `Task received by real runtime: ${task.substring(0, 50)}`,
-      source: 'real',
-      note: 'OpenClaw integration pending - this is minimal real dispatch'
-    });
-    addEvent('experiment_completed', {
-      status: 'success',
-      source: 'real',
-      via: 'connector_dispatch_server'
-    });
-    exp.status = 'completed';
-    console.log(`✅ Experiment ${experimentId.substring(0, 8)} completed via real dispatch`);
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          if (!connected) {
+            ws.close();
+            reject(new Error('WebSocket connection timeout'));
+          }
+        }, 10000);
+
+        ws.on('open', () => {
+          connected = true;
+          clearTimeout(timeout);
+          addEvent('gateway_ws_connected', { url: gatewayWsUrl });
+
+          // Send agent request via ACP protocol
+          ws.send(JSON.stringify({
+            type: 'agent_request',
+            experiment_id: experimentId,
+            message: task,
+            timestamp: Date.now()
+          }));
+          addEvent('gateway_ws_message_sent', { task: task.substring(0, 50) });
+        });
+
+        ws.on('message', (data: Buffer) => {
+          try {
+            const msg = JSON.parse(data.toString());
+            addEvent('gateway_ws_message_received', { type: msg.type });
+
+            if (msg.type === 'agent_response') {
+              addEvent('agent_response', { message: msg.content || msg.message, source: 'gateway_ws' });
+            } else if (msg.type === 'agent_thinking') {
+              addEvent('agent_thinking', { message: msg.message, source: 'gateway_ws' });
+            } else if (msg.type === 'completed' || msg.type === 'done') {
+              addEvent('experiment_completed', { status: 'success', source: 'gateway_ws' });
+              exp.status = 'completed';
+              ws.close();
+              resolve();
+            }
+          } catch (err) {
+            addEvent('gateway_ws_parse_error', { error: (err as Error).message });
+          }
+        });
+
+        ws.on('error', (err) => {
+          addEvent('gateway_ws_error', { error: err.message });
+          if (!connected) reject(err);
+        });
+
+        ws.on('close', () => {
+          addEvent('gateway_ws_closed', {});
+          if (exp.status !== 'completed') {
+            addEvent('gateway_ws_no_completion', { note: 'WebSocket closed before completion' });
+            exp.status = 'completed';
+          }
+          resolve();
+        });
+
+        // Auto-complete after 30s if no completion message
+        setTimeout(() => {
+          if (exp.status !== 'completed') {
+            addEvent('gateway_ws_timeout', { note: 'No completion after 30s' });
+            exp.status = 'completed';
+            ws.close();
+            resolve();
+          }
+        }, 30000);
+      });
+
+      console.log(`✅ Experiment ${experimentId.substring(0, 8)} completed via Gateway WebSocket`);
+    } catch (err) {
+      addEvent('gateway_ws_failed', { error: (err as Error).message });
+      addEvent('experiment_completed', { status: 'failed', source: 'gateway_ws', error: (err as Error).message });
+      exp.status = 'failed';
+      console.error(`❌ Gateway WebSocket failed: ${(err as Error).message}`);
+    }
   }
 
   stop() {
