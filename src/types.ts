@@ -35,6 +35,9 @@ export interface Experiment {
   phase?: ExperimentPhase
   execution_steps?: ExecutionStep[]
   execution_summary?: ExecutionSummary
+  runtime_id?: string
+  runtime_mode?: string
+  backend_experiment_id?: string
 }
 
 export interface Event {

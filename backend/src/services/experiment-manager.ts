@@ -2,6 +2,7 @@
 import type { Experiment, ExperimentEvent } from '../models/experiment';
 import type { Runtime } from '../models/runtime';
 import { OpenClawAdapter, type OpenClawConfig } from '../adapters/openclaw';
+import { markRuntimeBusy, markRuntimeFree } from './runtime-health';
 
 const activeAdapters = new Map<string, OpenClawAdapter>();
 
@@ -10,12 +11,14 @@ export async function startExperimentWithRuntime(
   runtime: Runtime,
   onEvent: (event: ExperimentEvent) => void
 ): Promise<void> {
+  markRuntimeBusy(runtime, experiment.experiment_id);
+
   if (runtime.runtime_type === 'openclaw') {
     const config: OpenClawConfig = {
       mode: runtime.runtime_mode,
       gateway_url: runtime.runtime_mode === 'real' ? runtime.gateway_url : runtime.endpoint,
       device_id: runtime.runtime_mode === 'real' ? runtime.device_id : `runtime-${runtime.runtime_id}`,
-      private_key: 'stub-key', // TODO: retrieve from secure storage
+      private_key: 'stub-key',
     };
 
     const adapter = new OpenClawAdapter(config);
@@ -25,9 +28,9 @@ export async function startExperimentWithRuntime(
 
     try {
       await adapter.connect();
-      // Execute task (will complete quickly with mock fallback)
       await adapter.sendAgentRequest(experiment.task);
     } catch (err) {
+      markRuntimeFree(runtime);
       onEvent({
         event_id: crypto.randomUUID(),
         experiment_id: experiment.experiment_id,
@@ -38,14 +41,18 @@ export async function startExperimentWithRuntime(
       throw err;
     }
   } else {
+    markRuntimeFree(runtime);
     throw new Error(`Runtime type ${runtime.runtime_type} not supported yet`);
   }
 }
 
-export async function stopExperimentAdapter(experiment_id: string): Promise<void> {
+export async function stopExperimentAdapter(experiment_id: string, runtime?: Runtime): Promise<void> {
   const adapter = activeAdapters.get(experiment_id);
   if (adapter) {
     await adapter.disconnect();
     activeAdapters.delete(experiment_id);
+  }
+  if (runtime) {
+    markRuntimeFree(runtime);
   }
 }

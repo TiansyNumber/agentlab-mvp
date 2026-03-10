@@ -8,6 +8,12 @@ export interface Runtime {
   capabilities: string[];
   status: string;
   last_heartbeat: string;
+  last_seen_ms_ago: number;
+  is_stale: boolean;
+  is_offline: boolean;
+  is_busy: boolean;
+  active_experiment_id?: string;
+  active_experiment_duration_ms?: number;
   device_id?: string;
   gateway_url?: string;
 }

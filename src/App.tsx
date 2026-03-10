@@ -46,7 +46,7 @@ function App() {
 
   const handleStartWithBackend = async (expId: string) => {
     if (!selectedRuntimeId) {
-      alert('请先选择 Runtime');
+      alert('请先连接 OpenClaw');
       return;
     }
     const exp = experiments.find(e => e.id === expId);
@@ -62,19 +62,120 @@ function App() {
       addEvent(expId, createEvent('action', `后端实验已启动: ${result.id}`));
       updateStatus(expId, 'running');
 
+      // 保存 runtime 信息和 backend_experiment_id 到 experiment
+      setExperiments(prev => prev.map(e => e.id === expId ? {
+        ...e,
+        runtime_id: selectedRuntimeId,
+        runtime_mode: selectedRuntimeMode,
+        backend_experiment_id: result.id,
+        execution_steps: [
+          {
+            step_id: 'connecting',
+            phase: 'connecting' as const,
+            started_at: Date.now(),
+            status: 'running' as const
+          }
+        ]
+      } : e));
+
       let lastEventCount = 0;
+      const keyActions: string[] = [];
+      let totalActions = 0;
+      const phaseTimestamps: Record<string, number> = { connecting: Date.now() };
+
       const pollEvents = setInterval(async () => {
         try {
           const events = await api.getExperimentEvents(result.id);
           if (events.length > lastEventCount) {
-            events.slice(lastEventCount).forEach(e => {
+            const newEvents = events.slice(lastEventCount);
+            newEvents.forEach(e => {
               const msg = typeof e.message === 'string' ? e.message : JSON.stringify(JSON.parse(e.message));
               addEvent(expId, createEvent('action', `[${e.type}] ${msg}`));
+              totalActions++;
+
+              // 根据 event 类型更新执行步骤
+              const phaseMap: Record<string, string> = {
+                'connecting_gateway': 'connecting',
+                'connected': 'connected',
+                'authenticating': 'authenticating',
+                'authenticated': 'authenticated',
+                'task_submitted': 'command_sent',
+                'command_sent': 'command_sent',
+                'action_received': 'action_received',
+                'execution_running': 'execution_running',
+                'experiment_completed': 'execution_completed',
+                'experiment_stopped': 'execution_failed',
+              };
+              const phase = phaseMap[e.type];
+              if (phase) {
+                const now = Date.now();
+                phaseTimestamps[phase] = now;
+                setExperiments(prev => prev.map(exp => {
+                  if (exp.id !== expId) return exp;
+                  const existingSteps = exp.execution_steps || [];
+                  const prevStepIdx = existingSteps.length - 1;
+                  let updatedSteps = existingSteps.map((s, idx) => {
+                    if (idx === prevStepIdx && s.status === 'running') {
+                      return { ...s, status: 'completed' as const, completed_at: now };
+                    }
+                    return s;
+                  });
+                  if (phase !== 'execution_completed' && phase !== 'execution_failed') {
+                    updatedSteps = [...updatedSteps, {
+                      step_id: phase,
+                      phase: phase as any,
+                      started_at: now,
+                      status: 'running' as const
+                    }];
+                  }
+                  return { ...exp, execution_steps: updatedSteps };
+                }));
+              }
+
+              // 收集关键动作
+              if (['authenticated', 'task_submitted', 'action_received', 'experiment_completed'].includes(e.type)) {
+                keyActions.push(msg.slice(0, 80));
+              }
 
               if (e.type === 'experiment_completed') {
+                setExperiments(prev => prev.map(exp => {
+                  if (exp.id !== expId) return exp;
+                  const now2 = Date.now();
+                  return {
+                    ...exp,
+                    execution_steps: (exp.execution_steps || []).map((s, idx, arr) =>
+                      idx === arr.length - 1 && s.status === 'running'
+                        ? { ...s, status: 'completed' as const, completed_at: now2, phase: 'execution_completed' as const }
+                        : s
+                    ),
+                    execution_summary: {
+                      total_actions: totalActions,
+                      key_actions: keyActions,
+                      final_output: msg.slice(0, 200)
+                    }
+                  };
+                }));
                 updateStatus(expId, 'success');
                 clearInterval(pollEvents);
               } else if (e.type === 'experiment_stopped') {
+                setExperiments(prev => prev.map(exp => {
+                  if (exp.id !== expId) return exp;
+                  const now3 = Date.now();
+                  const lastStep = exp.execution_steps?.[exp.execution_steps.length - 1];
+                  return {
+                    ...exp,
+                    execution_steps: (exp.execution_steps || []).map((s, idx, arr) =>
+                      idx === arr.length - 1 && s.status === 'running'
+                        ? { ...s, status: 'failed' as const, completed_at: now3, error: '实验被停止' }
+                        : s
+                    ),
+                    execution_summary: {
+                      total_actions: totalActions,
+                      key_actions: keyActions,
+                      failure_step: lastStep?.phase
+                    }
+                  };
+                }));
                 updateStatus(expId, 'failed');
                 clearInterval(pollEvents);
               }
@@ -233,14 +334,14 @@ function App() {
                 {selectedRuntimeMode === 'real' ? '🟢' : '⚪'} {selectedRuntimeId.slice(0, 8)}
               </span>
             )}
-            <button onClick={() => setView('runtime')} style={{ padding: '5px 12px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer', background: 'white' }}>Runtime</button>
+            <button onClick={() => setView('runtime')} style={{ padding: '5px 12px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer', background: 'white' }}>连接 OpenClaw</button>
             <button onClick={() => setView('compare')} style={{ padding: '5px 12px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer', background: 'white' }}>Compare</button>
             <button onClick={() => setView('openclaw-debug')} style={{ padding: '5px 12px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer', background: 'white' }}>调试</button>
             <button onClick={() => setView('settings')} style={{ padding: '5px 12px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer', background: 'white' }}>设置</button>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 12 }}>
-          <StatCard label="在线 Runtime" value={selectedRuntimeId ? 1 : 0} color="#10b981" />
+          <StatCard label="已连接 OpenClaw" value={selectedRuntimeId ? 1 : 0} color="#10b981" />
           <StatCard label="执行中实验" value={runningExps} color="#3b82f6" />
           <StatCard label="已完成实验" value={completedExps} color="#8b5cf6" />
           <StatCard label="总实验数" value={experiments.length} color="#6b7280" />

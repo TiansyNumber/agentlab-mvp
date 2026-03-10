@@ -81,12 +81,12 @@ export default function RuntimeManager({ onBack, onSelectRuntime }: Props) {
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto' }}>
       <button onClick={onBack}>← 返回</button>
-      <h2>Runtime 管理</h2>
+      <h2>连接 OpenClaw</h2>
 
       <div style={{ marginBottom: 20, border: '2px solid #10b981', padding: 20, borderRadius: 8, background: '#ecfdf5' }}>
-        <h3 style={{ margin: '0 0 8px 0', fontSize: 18, color: '#065f46' }}>🔗 自动接入 Runtime</h3>
+        <h3 style={{ margin: '0 0 8px 0', fontSize: 18, color: '#065f46' }}>🔗 启动 Connector 自动连接</h3>
         <p style={{ margin: '0 0 12px 0', fontSize: 13, color: '#047857' }}>
-          在本地运行 connector 自动连接到平台，无需手工填写配置
+          推荐方式：在本地运行 connector，自动连接到平台，无需手工配置
         </p>
         <div style={{ background: '#1f2937', color: '#e5e7eb', padding: 12, borderRadius: 6, fontFamily: 'monospace', fontSize: 13 }}>
           cd connector && npm start
@@ -94,7 +94,7 @@ export default function RuntimeManager({ onBack, onSelectRuntime }: Props) {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h3 style={{ margin: 0, fontSize: 16 }}>已连接 Runtime ({connectedRuntimes.length})</h3>
+        <h3 style={{ margin: 0, fontSize: 16 }}>已连接的 OpenClaw ({connectedRuntimes.length})</h3>
         <button onClick={loadRuntimes} disabled={loading} style={{ padding: '4px 12px', fontSize: 13 }}>🔄 刷新</button>
       </div>
 
@@ -138,14 +138,14 @@ export default function RuntimeManager({ onBack, onSelectRuntime }: Props) {
                       fontSize: 13
                     }}
                   >
-                    选择此 Runtime
+                    使用此连接
                   </button>
                 </div>
               ))}
             </div>
           ) : (
             <div style={{ padding: 20, textAlign: 'center', color: '#6b7280', background: '#f9fafb', borderRadius: 8, marginBottom: 24 }}>
-              暂无已连接的 Runtime，请启动 connector 自动接入
+              暂无已连接的 OpenClaw，请运行上方命令启动 connector
             </div>
           )}
 

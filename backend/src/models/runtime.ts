@@ -29,6 +29,9 @@ export interface Runtime {
   paired_at?: number;
   connection_state?: ConnectionState;
   reconnect_attempts?: number;
+  // Occupancy tracking
+  active_experiment_id?: string;
+  active_experiment_started_at?: number;
 }
 
 export interface RuntimeHeartbeat {

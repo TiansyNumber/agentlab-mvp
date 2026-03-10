@@ -68,33 +68,62 @@ export default function ExperimentDetail({ experiment, onBack, onResume, onPause
 
       {experiment.execution_steps && experiment.execution_steps.length > 0 && (
         <>
-          <h3 style={{ marginTop: '20px', marginBottom: 12 }}>执行阶段流程</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+          <h3 style={{ marginTop: '20px', marginBottom: 12 }}>执行步骤流程</h3>
+          <div style={{ position: 'relative', paddingLeft: '24px', marginBottom: '20px' }}>
+            <div style={{ position: 'absolute', left: '11px', top: '12px', bottom: '12px', width: '2px', background: '#e5e7eb' }} />
             {experiment.execution_steps.map((step, idx) => {
               const isLast = idx === experiment.execution_steps!.length - 1;
               const stepColor = step.status === 'completed' ? '#10b981' : step.status === 'failed' ? '#ef4444' : '#3b82f6';
               const stepIcon = step.status === 'completed' ? '✓' : step.status === 'failed' ? '✖' : '⟳';
 
               return (
-                <div key={step.step_id} style={{
-                  padding: '12px',
-                  border: `2px solid ${stepColor}`,
-                  borderLeft: `4px solid ${stepColor}`,
-                  borderRadius: '6px',
-                  backgroundColor: step.status === 'completed' ? '#f0fdf4' : step.status === 'failed' ? '#fef2f2' : '#eff6ff',
-                  opacity: isLast && step.status === 'running' ? 1 : 0.85
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 16, color: stepColor }}>{stepIcon}</span>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>{phaseLabels[step.phase]}</span>
-                      {step.status === 'running' && <span style={{ fontSize: 11, color: '#6b7280' }}>进行中...</span>}
-                    </div>
-                    <span style={{ fontSize: 11, color: '#9ca3af' }}>
-                      {step.completed_at ? `${((step.completed_at - step.started_at) / 1000).toFixed(1)}s` : '...'}
-                    </span>
+                <div key={step.step_id} style={{ position: 'relative', marginBottom: idx === experiment.execution_steps!.length - 1 ? 0 : '12px' }}>
+                  <div style={{
+                    position: 'absolute',
+                    left: '-24px',
+                    top: '12px',
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    background: stepColor,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    zIndex: 1
+                  }}>
+                    {stepIcon}
                   </div>
-                  {step.error && <p style={{ margin: '6px 0 0 0', fontSize: 12, color: '#ef4444' }}>错误: {step.error}</p>}
+                  <div style={{
+                    padding: '12px 16px',
+                    border: `2px solid ${stepColor}20`,
+                    borderLeft: `4px solid ${stepColor}`,
+                    borderRadius: '8px',
+                    backgroundColor: step.status === 'completed' ? '#f0fdf4' : step.status === 'failed' ? '#fef2f2' : '#eff6ff',
+                    boxShadow: isLast && step.status === 'running' ? `0 0 0 3px ${stepColor}20` : 'none',
+                    transition: 'all 0.3s'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: step.error ? '8px' : 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{phaseLabels[step.phase]}</span>
+                        {step.status === 'running' && (
+                          <span style={{ fontSize: 11, color: '#6b7280', padding: '2px 6px', background: 'white', borderRadius: 3 }}>
+                            进行中...
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600 }}>
+                        {step.completed_at ? `${((step.completed_at - step.started_at) / 1000).toFixed(1)}s` : '...'}
+                      </span>
+                    </div>
+                    {step.error && (
+                      <div style={{ padding: '8px', background: '#fee2e2', borderRadius: '4px', fontSize: 12, color: '#991b1b' }}>
+                        <strong>错误:</strong> {step.error}
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -104,22 +133,52 @@ export default function ExperimentDetail({ experiment, onBack, onResume, onPause
 
       {experiment.execution_summary && (
         <>
-          <h3 style={{ marginTop: '20px', marginBottom: 12 }}>执行摘要</h3>
-          <div style={{ padding: '12px', border: '2px solid #e5e7eb', borderRadius: '6px', backgroundColor: '#f9fafb' }}>
-            <p style={{ margin: '0 0 8px 0', fontSize: 13 }}><strong>总动作数:</strong> {experiment.execution_summary.total_actions}</p>
-            {experiment.execution_summary.key_actions.length > 0 && (
-              <div style={{ marginBottom: '8px' }}>
-                <p style={{ margin: '0 0 4px 0', fontSize: 13, fontWeight: 600 }}>关键动作:</p>
-                {experiment.execution_summary.key_actions.map((action, idx) => (
-                  <p key={idx} style={{ margin: '2px 0 2px 16px', fontSize: 12, color: '#6b7280' }}>• {action}</p>
-                ))}
+          <h3 style={{ marginTop: '20px', marginBottom: 12 }}>执行结果摘要</h3>
+          <div style={{
+            padding: '16px',
+            border: `2px solid ${experiment.status === 'success' ? '#10b981' : experiment.status === 'failed' ? '#ef4444' : '#e5e7eb'}`,
+            borderRadius: '8px',
+            backgroundColor: experiment.status === 'success' ? '#f0fdf4' : experiment.status === 'failed' ? '#fef2f2' : '#f9fafb',
+            marginBottom: '16px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 20 }}>{experiment.status === 'success' ? '✅' : experiment.status === 'failed' ? '❌' : '🔄'}</span>
+                <span style={{ fontSize: 15, fontWeight: 700, color: experiment.status === 'success' ? '#065f46' : experiment.status === 'failed' ? '#991b1b' : '#374151' }}>
+                  {experiment.status === 'success' ? '执行成功' : experiment.status === 'failed' ? '执行失败' : '执行中'}
+                </span>
+              </div>
+              <span style={{ fontSize: 13, color: '#6b7280' }}>
+                共 <strong>{experiment.execution_summary.total_actions}</strong> 个动作
+              </span>
+            </div>
+
+            {experiment.execution_summary.failure_step && (
+              <div style={{ padding: '8px 12px', background: '#fee2e2', borderRadius: '6px', marginBottom: '10px', borderLeft: '4px solid #ef4444' }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#991b1b' }}>失败阶段：</span>
+                <span style={{ fontSize: 12, color: '#7f1d1d', marginLeft: 6 }}>{phaseLabels[experiment.execution_summary.failure_step as ExperimentPhase] ?? experiment.execution_summary.failure_step}</span>
               </div>
             )}
-            {experiment.execution_summary.final_output && (
-              <p style={{ margin: '8px 0 0 0', fontSize: 13 }}><strong>最终输出:</strong> {experiment.execution_summary.final_output}</p>
+
+            {experiment.execution_summary.key_actions.length > 0 && (
+              <div style={{ marginBottom: '10px' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: '6px' }}>关键动作</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {experiment.execution_summary.key_actions.map((action, idx) => (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: 12, color: '#374151' }}>
+                      <span style={{ color: '#6b7280', flexShrink: 0, fontWeight: 600, minWidth: '18px' }}>{idx + 1}.</span>
+                      <span style={{ lineHeight: 1.5 }}>{action}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
-            {experiment.execution_summary.failure_step && (
-              <p style={{ margin: '8px 0 0 0', fontSize: 13, color: '#ef4444' }}><strong>失败阶段:</strong> {phaseLabels[experiment.execution_summary.failure_step as ExperimentPhase]}</p>
+
+            {experiment.execution_summary.final_output && (
+              <div style={{ padding: '10px 12px', background: 'white', borderRadius: '6px', borderLeft: '4px solid #10b981' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#065f46', marginBottom: '4px' }}>最终输出</div>
+                <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>{experiment.execution_summary.final_output}</div>
+              </div>
             )}
           </div>
         </>
