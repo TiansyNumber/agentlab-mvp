@@ -51,6 +51,12 @@ export async function listRuntimes(owner?: string): Promise<Runtime[]> {
   return owner ? all.filter(r => r.owner === owner) : all;
 }
 
+export async function markRuntimeDisconnected(runtime_id: string): Promise<void> {
+  const runtime = runtimes.get(runtime_id);
+  if (!runtime) throw new Error('Runtime not found');
+  runtime.status = 'offline';
+}
+
 export async function getRuntime(runtime_id: string): Promise<Runtime | null> {
   return runtimes.get(runtime_id) || null;
 }

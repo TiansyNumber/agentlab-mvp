@@ -35,6 +35,33 @@ export interface ExperimentEvent {
   timestamp: string;
 }
 
+export interface CompareResult {
+  experiments: Array<{
+    id: string;
+    runtime_id: string;
+    task: string;
+    status: string;
+    phase?: string;
+    failure_reason?: string;
+    duration_ms?: number;
+    event_count: number;
+    final_result?: string;
+  }>;
+  comparison: {
+    all_same_task: boolean;
+    all_same_runtime: boolean;
+    success_count: number;
+    failure_count: number;
+    stopped_count: number;
+    avg_duration_ms?: number;
+    min_duration_ms?: number;
+    max_duration_ms?: number;
+    fastest_id?: string;
+    slowest_id?: string;
+    failure_stages: Record<string, number>;
+  };
+}
+
 export const api = {
   async registerRuntime(data: { owner: string; type: string; runtime_mode: string; capabilities: string[]; device_id?: string; gateway_url?: string }): Promise<Runtime> {
     const res = await fetch(`${API_BASE}/api/runtimes`, {
@@ -77,6 +104,42 @@ export const api = {
   async getExperimentEvents(id: string): Promise<ExperimentEvent[]> {
     const res = await fetch(`${API_BASE}/api/experiments/${id}/events`);
     if (!res.ok) throw new Error(`Failed to get events: ${res.statusText}`);
+    return res.json();
+  },
+
+  async listExperiments(owner?: string, runtime_id?: string): Promise<ExperimentResponse[]> {
+    const params = new URLSearchParams();
+    if (owner) params.set('owner', owner);
+    if (runtime_id) params.set('runtime_id', runtime_id);
+    const res = await fetch(`${API_BASE}/api/experiments?${params}`);
+    if (!res.ok) throw new Error(`Failed to list experiments: ${res.statusText}`);
+    return res.json();
+  },
+
+  async compareExperiments(experiment_ids: string[]): Promise<CompareResult> {
+    const res = await fetch(`${API_BASE}/api/experiments/compare`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ experiment_ids })
+    });
+    if (!res.ok) throw new Error(`Failed to compare experiments: ${res.statusText}`);
+    return res.json();
+  },
+
+  async getRuntime(id: string): Promise<Runtime> {
+    const res = await fetch(`${API_BASE}/api/runtimes/${id}`);
+    if (!res.ok) throw new Error(`Failed to get runtime: ${res.statusText}`);
+    return res.json();
+  },
+
+  async disconnectRuntime(id: string): Promise<void> {
+    const res = await fetch(`${API_BASE}/api/runtimes/${id}/disconnect`, { method: 'POST' });
+    if (!res.ok) throw new Error(`Failed to disconnect runtime: ${res.statusText}`);
+  },
+
+  async getPairingStatus(code: string): Promise<{ valid: boolean; expires_in_ms?: number }> {
+    const res = await fetch(`${API_BASE}/api/connector/pair/${code}/status`);
+    if (!res.ok) throw new Error(`Failed to get pairing status: ${res.statusText}`);
     return res.json();
   }
 };

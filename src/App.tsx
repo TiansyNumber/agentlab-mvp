@@ -6,13 +6,14 @@ import ExperimentDetail from './components/ExperimentDetail'
 import Settings from './components/Settings'
 import OpenClawDebugPanel from './components/OpenClawDebugPanel'
 import RuntimeManager from './components/RuntimeManager'
+import CompareRuns from './components/CompareRuns'
 import { saveExperiments, loadExperiments, saveSkills, loadSkills, generateSkillDraft } from './utils'
 import { createEvent } from './services/experimentActions'
 import { createRunner, RunnerType, IExperimentRunner } from './services/runners'
 import { api } from './services/api'
 
 function App() {
-  const [view, setView] = useState<'list' | 'create' | 'detail' | 'settings' | 'openclaw-debug' | 'runtime'>('list')
+  const [view, setView] = useState<'list' | 'create' | 'detail' | 'settings' | 'openclaw-debug' | 'runtime' | 'compare'>('list')
   const [selectedId, setSelectedId] = useState<string>('')
   const [selectedRuntimeId, setSelectedRuntimeId] = useState<string>('')
   const [selectedRuntimeMode, setSelectedRuntimeMode] = useState<string>('')
@@ -200,27 +201,49 @@ function App() {
     }
   }
 
+  const runningExps = experiments.filter(e => e.status === 'running').length
+  const completedExps = experiments.filter(e => e.status === 'success' || e.status === 'failed').length
+
+  const StatCard = ({ label, value, color }: { label: string; value: number | string; color: string }) => (
+    <div style={{ background: 'white', border: `1px solid ${color}30`, borderTop: `3px solid ${color}`, borderRadius: 8, padding: '12px 20px', minWidth: 120, textAlign: 'center' }}>
+      <div style={{ fontSize: 28, fontWeight: 700, color }}>{value}</div>
+      <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{label}</div>
+    </div>
+  )
+
   return (
-    <div style={{ padding: '20px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h1>AgentLab MVP</h1>
-        <div>
-          <label style={{ marginRight: '10px' }}>
-            Runner:
-            <select value={runnerType} onChange={(e) => setRunnerType(e.target.value as RunnerType)} style={{ marginLeft: '5px' }}>
-              <option value="mock">Mock（模拟）</option>
-              <option value="anthropic">Anthropic（直连 Claude API）</option>
-              <option value="openclaw-bridge">OpenClaw Bridge（验证工具）</option>
-            </select>
-          </label>
-          {selectedRuntimeId && (
-            <span style={{ marginRight: 10, color: selectedRuntimeMode === 'real' ? 'green' : '#888', fontWeight: selectedRuntimeMode === 'real' ? 'bold' : 'normal' }}>
-              {selectedRuntimeMode === 'real' ? '🟢 Real Runtime: ' : 'Runtime: '}{selectedRuntimeId.slice(0, 8)}
-            </span>
-          )}
-          <button onClick={() => setView('runtime')} style={{ marginRight: 6 }}>Runtime 管理</button>
-          <button onClick={() => setView('openclaw-debug')} style={{ marginRight: 6 }}>OpenClaw 调试</button>
-          <button onClick={() => setView('settings')}>设置</button>
+    <div style={{ padding: '20px', background: '#f8fafc', minHeight: '100vh' }}>
+      <div style={{ background: 'white', borderRadius: 10, padding: '16px 20px', marginBottom: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>AgentLab</h1>
+            <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>实验调度中心</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <label style={{ fontSize: 13, color: '#374151' }}>
+              Runner:
+              <select value={runnerType} onChange={(e) => setRunnerType(e.target.value as RunnerType)} style={{ marginLeft: 6, padding: '3px 6px', border: '1px solid #d1d5db', borderRadius: 4, fontSize: 13 }}>
+                <option value="mock">Mock</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="openclaw-bridge">OpenClaw Bridge</option>
+              </select>
+            </label>
+            {selectedRuntimeId && (
+              <span style={{ padding: '3px 10px', borderRadius: 4, fontSize: 12, fontWeight: 600, background: selectedRuntimeMode === 'real' ? '#d1fae5' : '#f3f4f6', color: selectedRuntimeMode === 'real' ? '#065f46' : '#374151' }}>
+                {selectedRuntimeMode === 'real' ? '🟢' : '⚪'} {selectedRuntimeId.slice(0, 8)}
+              </span>
+            )}
+            <button onClick={() => setView('runtime')} style={{ padding: '5px 12px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer', background: 'white' }}>Runtime</button>
+            <button onClick={() => setView('compare')} style={{ padding: '5px 12px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer', background: 'white' }}>Compare</button>
+            <button onClick={() => setView('openclaw-debug')} style={{ padding: '5px 12px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer', background: 'white' }}>调试</button>
+            <button onClick={() => setView('settings')} style={{ padding: '5px 12px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer', background: 'white' }}>设置</button>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <StatCard label="在线 Runtime" value={selectedRuntimeId ? 1 : 0} color="#10b981" />
+          <StatCard label="执行中实验" value={runningExps} color="#3b82f6" />
+          <StatCard label="已完成实验" value={completedExps} color="#8b5cf6" />
+          <StatCard label="总实验数" value={experiments.length} color="#6b7280" />
         </div>
       </div>
       {view === 'list' && <ExperimentList experiments={experiments} onSelect={id => { setSelectedId(id); setView('detail') }} onCreate={() => setView('create')} />}
@@ -240,6 +263,7 @@ function App() {
       {view === 'settings' && <Settings onBack={() => setView('list')} />}
       {view === 'openclaw-debug' && <OpenClawDebugPanel onBack={() => setView('list')} />}
       {view === 'runtime' && <RuntimeManager onBack={() => setView('list')} onSelectRuntime={(id, mode) => { setSelectedRuntimeId(id); setSelectedRuntimeMode(mode); setView('list'); }} />}
+      {view === 'compare' && <CompareRuns onBack={() => setView('list')} />}
     </div>
   )
 }

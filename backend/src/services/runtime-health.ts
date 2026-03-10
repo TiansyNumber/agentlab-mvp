@@ -20,3 +20,19 @@ export function calculateRuntimeHealth(runtime: Runtime): RuntimeStatus {
 export function updateRuntimeHealth(runtime: Runtime): void {
   runtime.status = calculateRuntimeHealth(runtime);
 }
+
+export function getRuntimeHealthInfo(runtime: Runtime): {
+  status: RuntimeStatus;
+  last_seen_ms_ago: number;
+  is_stale: boolean;
+  is_offline: boolean;
+} {
+  const now = Date.now();
+  const last_seen_ms_ago = now - runtime.last_seen_at;
+  return {
+    status: calculateRuntimeHealth(runtime),
+    last_seen_ms_ago,
+    is_stale: last_seen_ms_ago > STALE_THRESHOLD_MS,
+    is_offline: last_seen_ms_ago > OFFLINE_THRESHOLD_MS,
+  };
+}

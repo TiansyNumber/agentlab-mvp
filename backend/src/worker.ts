@@ -1,10 +1,11 @@
 // Cloudflare Workers entry point for AgentLab Backend API
 // This layer is Cloudflare-ready and handles HTTP requests
 
-import { registerRuntime, updateHeartbeat, listRuntimes, getRuntime } from './api/runtime-registry';
+import { registerRuntime, updateHeartbeat, listRuntimes, getRuntime, markRuntimeDisconnected } from './api/runtime-registry';
 import { startExperiment, stopExperiment, getExperiment, getExperimentEvents, retryExperiment, listExperiments } from './api/experiment-control';
 import { compareExperiments } from './api/experiment-compare';
-import { generatePairingCode, completePairing } from './api/connector-pairing';
+import { generatePairingCode, completePairing, getPairingStatus } from './api/connector-pairing';
+import { getRuntimeHealthInfo } from './services/runtime-health';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -42,17 +43,56 @@ export default {
       if (url.pathname === '/api/runtimes' && request.method === 'GET') {
         const owner = url.searchParams.get('owner') || undefined;
         const runtimes = await listRuntimes(owner);
-        return Response.json(runtimes.map(r => ({
+        return Response.json(runtimes.map(r => {
+          const health = getRuntimeHealthInfo(r);
+          return {
+            id: r.runtime_id,
+            owner: r.owner,
+            type: r.runtime_type,
+            mode: r.runtime_mode,
+            capabilities: r.capabilities,
+            status: health.status,
+            last_heartbeat: new Date(r.last_heartbeat_at).toISOString(),
+            last_seen: new Date(r.last_seen_at).toISOString(),
+            last_seen_ms_ago: health.last_seen_ms_ago,
+            is_stale: health.is_stale,
+            is_offline: health.is_offline,
+            device_id: r.device_id,
+            gateway_url: r.gateway_url,
+            paired_at: r.paired_at ? new Date(r.paired_at).toISOString() : undefined,
+          };
+        }), { headers: corsHeaders });
+      }
+
+      // GET single runtime with health info
+      if (url.pathname.match(/^\/api\/runtimes\/[^/]+$/) && request.method === 'GET') {
+        const runtime_id = url.pathname.split('/')[3];
+        const r = await getRuntime(runtime_id);
+        if (!r) return Response.json({ error: 'Runtime not found' }, { status: 404, headers: corsHeaders });
+        const health = getRuntimeHealthInfo(r);
+        return Response.json({
           id: r.runtime_id,
           owner: r.owner,
           type: r.runtime_type,
           mode: r.runtime_mode,
           capabilities: r.capabilities,
-          status: r.status,
+          status: health.status,
           last_heartbeat: new Date(r.last_heartbeat_at).toISOString(),
+          last_seen: new Date(r.last_seen_at).toISOString(),
+          last_seen_ms_ago: health.last_seen_ms_ago,
+          is_stale: health.is_stale,
+          is_offline: health.is_offline,
           device_id: r.device_id,
-          gateway_url: r.gateway_url
-        })), { headers: corsHeaders });
+          gateway_url: r.gateway_url,
+          paired_at: r.paired_at ? new Date(r.paired_at).toISOString() : undefined,
+        }, { headers: corsHeaders });
+      }
+
+      // Mark runtime disconnected
+      if (url.pathname.match(/^\/api\/runtimes\/[^/]+\/disconnect$/) && request.method === 'POST') {
+        const runtime_id = url.pathname.split('/')[3];
+        await markRuntimeDisconnected(runtime_id);
+        return Response.json({ ok: true }, { headers: corsHeaders });
       }
 
       // Experiment Control endpoints
@@ -137,6 +177,12 @@ export default {
         const body = await request.json();
         const runtime = await completePairing(body.code, body.device_id);
         return Response.json({ runtime_id: runtime.runtime_id, paired: true }, { headers: corsHeaders });
+      }
+
+      if (url.pathname.match(/^\/api\/connector\/pair\/(.+)\/status$/) && request.method === 'GET') {
+        const code = url.pathname.split('/')[4];
+        const status = getPairingStatus(code);
+        return Response.json(status, { headers: corsHeaders });
       }
 
       return new Response('Not found', { status: 404, headers: corsHeaders });

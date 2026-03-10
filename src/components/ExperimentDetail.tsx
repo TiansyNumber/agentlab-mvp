@@ -52,28 +52,37 @@ export default function ExperimentDetail({ experiment, onBack, onResume, onPause
         <button onClick={onGenerateSkill} disabled={!canGenerateSkill} style={{ opacity: canGenerateSkill ? 1 : 0.5, backgroundColor: canGenerateSkill ? '#4CAF50' : undefined, color: canGenerateSkill ? 'white' : undefined }}>生成技能草稿</button>
       </div>
 
-      <h3 style={{ marginTop: '20px' }}>事件时间线</h3>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <h3 style={{ marginTop: '20px', marginBottom: 12 }}>事件观察台</h3>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {experiment.events.map(event => {
-          const isPhaseEvent = ['connecting_gateway', 'connected', 'authenticating', 'authenticated', 'task_submitted', 'command_sent'].includes(event.type);
-          const isActionEvent = ['agent_thinking', 'agent_action', 'action_received', 'execution_running'].includes(event.type);
-          const isErrorEvent = ['start_failed', 'experiment_failed', 'experiment_timeout', 'auth_failed', 'gateway_connect_failed'].includes(event.type);
-          const isSuccessEvent = ['experiment_completed', 'execution_completed'].includes(event.type);
+          const isPhaseEvent = ['start', 'connecting_gateway', 'connected', 'authenticating', 'authenticated', 'task_submitted', 'command_sent'].includes(event.type);
+          const isActionEvent = ['action', 'agent_thinking', 'agent_action', 'action_received', 'execution_running'].includes(event.type);
+          const isErrorEvent = ['failed', 'start_failed', 'experiment_failed', 'experiment_timeout', 'auth_failed', 'gateway_connect_failed'].includes(event.type);
+          const isCompleteEvent = ['success', 'complete', 'experiment_completed', 'execution_completed'].includes(event.type);
 
-          let bgColor = '#f9f9f9';
-          let borderColor = '#ddd';
-          if (isPhaseEvent) { bgColor = '#e3f2fd'; borderColor = '#2196F3'; }
-          else if (isActionEvent) { bgColor = '#fff3e0'; borderColor = '#FF9800'; }
-          else if (isErrorEvent) { bgColor = '#ffebee'; borderColor = '#F44336'; }
-          else if (isSuccessEvent) { bgColor = '#e8f5e9'; borderColor = '#4CAF50'; }
+          let config = { bg: '#f9fafb', border: '#e5e7eb', icon: '●', label: 'INFO' };
+          if (isPhaseEvent) config = { bg: '#eff6ff', border: '#3b82f6', icon: '▶', label: 'PHASE' };
+          else if (isActionEvent) config = { bg: '#fffbeb', border: '#f59e0b', icon: '⚡', label: 'ACTION' };
+          else if (isErrorEvent) config = { bg: '#fef2f2', border: '#ef4444', icon: '✖', label: 'ERROR' };
+          else if (isCompleteEvent) config = { bg: '#f0fdf4', border: '#10b981', icon: '✓', label: 'COMPLETE' };
 
           return (
-            <div key={event.id} style={{ padding: '10px', border: `1px solid ${borderColor}`, borderRadius: '4px', backgroundColor: bgColor }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                <strong style={{ textTransform: 'uppercase', fontSize: '0.85em', color: borderColor }}>{event.type}</strong>
-                <span style={{ color: '#666', fontSize: '0.9em' }}>{event.timestamp}</span>
+            <div key={event.id} style={{
+              padding: '10px 12px',
+              border: `2px solid ${config.border}`,
+              borderLeft: `4px solid ${config.border}`,
+              borderRadius: '6px',
+              backgroundColor: config.bg
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 14, color: config.border }}>{config.icon}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: config.border, letterSpacing: 0.5 }}>{config.label}</span>
+                  <span style={{ fontSize: 12, color: '#6b7280' }}>{event.type}</span>
+                </div>
+                <span style={{ color: '#9ca3af', fontSize: '11px' }}>{event.timestamp}</span>
               </div>
-              <p style={{ margin: 0 }}>{event.message}</p>
+              <p style={{ margin: 0, fontSize: 13, color: '#374151', lineHeight: 1.5 }}>{event.message}</p>
             </div>
           );
         })}

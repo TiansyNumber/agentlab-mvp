@@ -54,75 +54,111 @@ export default function RuntimeManager({ onBack, onSelectRuntime }: Props) {
     loadRuntimes();
   }, []);
 
+  const getStatusBadge = (status: string) => {
+    const badges = {
+      online: { label: '在线', color: '#10b981', bg: '#d1fae5' },
+      idle: { label: '空闲', color: '#3b82f6', bg: '#dbeafe' },
+      busy: { label: '忙碌', color: '#f59e0b', bg: '#fef3c7' },
+      offline: { label: '离线', color: '#6b7280', bg: '#f3f4f6' }
+    };
+    const badge = badges[status as keyof typeof badges] || badges.offline;
+    return <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 12, fontWeight: 600, color: badge.color, background: badge.bg }}>{badge.label}</span>;
+  };
+
+  const getLastSeen = (heartbeat: string) => {
+    if (!heartbeat) return '未知';
+    const diff = Date.now() - new Date(heartbeat).getTime();
+    if (diff < 60000) return '刚刚';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`;
+    return `${Math.floor(diff / 3600000)}小时前`;
+  };
+
   return (
-    <div>
+    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
       <button onClick={onBack}>← 返回</button>
-      <h2>Runtime 管理</h2>
-      <div style={{ marginBottom: 20, border: '1px solid #ccc', padding: 10 }}>
-        <h3>注册新 Runtime</h3>
-        <div style={{ marginBottom: 10 }}>
-          <label>Owner: </label>
-          <input value={owner} onChange={e => setOwner(e.target.value)} placeholder="Owner" />
-        </div>
-        <div style={{ marginBottom: 10 }}>
-          <label>Mode: </label>
-          <select value={mode} onChange={e => setMode(e.target.value as any)}>
-            <option value="demo">Demo (纯演示)</option>
-            <option value="simulated">Simulated (模拟 OpenClaw)</option>
-            <option value="real">Real (真实 OpenClaw Gateway)</option>
-          </select>
-        </div>
-        {mode === 'real' && (
-          <>
-            <div style={{ marginBottom: 10 }}>
-              <label>Device ID: </label>
-              <input value={deviceId} onChange={e => setDeviceId(e.target.value)} placeholder="device-xxx" />
-            </div>
-            <div style={{ marginBottom: 10 }}>
-              <label>Gateway URL: </label>
-              <input value={gatewayUrl} onChange={e => setGatewayUrl(e.target.value)} placeholder="https://gateway.openclaw.ai" style={{ width: 300 }} />
-            </div>
-          </>
-        )}
-        <button onClick={handleRegister} disabled={loading}>注册 Runtime</button>
-      </div>
-      <div style={{ marginBottom: 10 }}>
-        <button onClick={loadRuntimes} disabled={loading}>刷新列表</button>
-      </div>
-      {loading ? <p>加载中...</p> : (
-        <>
-          {runtimes.some(r => r.mode === 'real') && (
-            <p style={{ color: 'green', fontWeight: 'bold' }}>✅ 检测到 CLI 接入的 real runtime，可直接选择使用</p>
+      <h2>Runtime 调度面板</h2>
+
+      <div style={{ marginBottom: 20, border: '1px solid #e5e7eb', padding: 16, borderRadius: 8, background: '#f9fafb' }}>
+        <h3 style={{ margin: '0 0 12px 0', fontSize: 16 }}>注册新 Runtime</h3>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600 }}>Owner</span>
+            <input value={owner} onChange={e => setOwner(e.target.value)} placeholder="Owner" style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: 4 }} />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600 }}>Mode</span>
+            <select value={mode} onChange={e => setMode(e.target.value as any)} style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: 4 }}>
+              <option value="demo">Demo</option>
+              <option value="simulated">Simulated</option>
+              <option value="real">Real</option>
+            </select>
+          </label>
+          {mode === 'real' && (
+            <>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 600 }}>Device ID</span>
+                <input value={deviceId} onChange={e => setDeviceId(e.target.value)} placeholder="device-xxx" style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: 4, width: 150 }} />
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 600 }}>Gateway URL</span>
+                <input value={gatewayUrl} onChange={e => setGatewayUrl(e.target.value)} placeholder="https://gateway.openclaw.ai" style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: 4, width: 250 }} />
+              </label>
+            </>
           )}
-          <table border={1} style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Owner</th>
-                <th>Type</th>
-                <th>Mode</th>
-                <th>Status</th>
-                <th>Device ID</th>
-                <th>Gateway</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {runtimes.map(r => (
-                <tr key={r.id} style={{ backgroundColor: r.mode === 'real' ? '#e8f5e9' : 'transparent' }}>
-                  <td title={r.id}>{r.id.slice(0, 8)}...</td>
-                  <td>{r.owner}</td>
-                  <td>{r.type}</td>
-                  <td><strong>{r.mode === 'real' ? '🟢 real (CLI)' : r.mode}</strong></td>
-                  <td style={{ color: r.status === 'online' ? 'green' : 'gray' }}>{r.status}</td>
-                  <td>{r.device_id ? r.device_id.slice(0, 12) + '...' : '-'}</td>
-                  <td>{r.gateway_url ? (() => { try { return new URL(r.gateway_url!).host; } catch { return r.gateway_url; } })() : '-'}</td>
-                  <td><button onClick={() => onSelectRuntime(r.id, r.mode)}>选择</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
+          <button onClick={handleRegister} disabled={loading} style={{ padding: '5px 16px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}>注册</button>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <h3 style={{ margin: 0, fontSize: 16 }}>Runtime 列表 ({runtimes.length})</h3>
+        <button onClick={loadRuntimes} disabled={loading} style={{ padding: '4px 12px', fontSize: 13 }}>🔄 刷新</button>
+      </div>
+
+      {loading ? <p>加载中...</p> : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+          {runtimes.map(r => (
+            <div key={r.id} style={{
+              border: r.mode === 'real' ? '2px solid #10b981' : '1px solid #e5e7eb',
+              borderRadius: 8,
+              padding: 16,
+              background: r.mode === 'real' ? '#ecfdf5' : 'white',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>ID: {r.id.slice(0, 12)}...</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{r.mode === 'real' ? '🟢 Real Runtime' : r.mode.toUpperCase()}</div>
+                </div>
+                {getStatusBadge(r.status)}
+              </div>
+
+              <div style={{ fontSize: 12, color: '#4b5563', marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div><strong>Owner:</strong> {r.owner}</div>
+                <div><strong>Type:</strong> {r.type}</div>
+                {r.device_id && <div><strong>Device:</strong> {r.device_id.slice(0, 16)}...</div>}
+                {r.gateway_url && <div><strong>Gateway:</strong> {(() => { try { return new URL(r.gateway_url!).host; } catch { return r.gateway_url; } })()}</div>}
+                <div><strong>Last Seen:</strong> {getLastSeen(r.last_heartbeat)}</div>
+              </div>
+
+              <button
+                onClick={() => onSelectRuntime(r.id, r.mode)}
+                style={{
+                  width: '100%',
+                  padding: '6px',
+                  background: r.mode === 'real' ? '#10b981' : '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: 13
+                }}
+              >
+                选择此 Runtime
+              </button>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
