@@ -292,73 +292,108 @@ export class AgentLabConnector {
     };
 
     const gatewayWsUrl = this.config.gateway.replace(/^http/, 'ws');
-    addEvent('gateway_ws_connecting', { url: gatewayWsUrl });
+    addEvent('acp_connecting', { url: gatewayWsUrl });
 
     try {
       const ws = new WebSocket(gatewayWsUrl);
-      let connected = false;
+      let handshakeComplete = false;
+      let promptSent = false;
 
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
-          if (!connected) {
+          if (!handshakeComplete) {
             ws.close();
-            reject(new Error('WebSocket connection timeout'));
+            reject(new Error('ACP handshake timeout'));
           }
         }, 10000);
 
         ws.on('open', () => {
-          connected = true;
-          clearTimeout(timeout);
-          addEvent('gateway_ws_connected', { url: gatewayWsUrl });
-
-          // Send agent request via ACP protocol
-          ws.send(JSON.stringify({
-            type: 'agent_request',
-            experiment_id: experimentId,
-            message: task,
-            timestamp: Date.now()
-          }));
-          addEvent('gateway_ws_message_sent', { task: task.substring(0, 50) });
+          addEvent('acp_ws_open', { url: gatewayWsUrl });
         });
 
         ws.on('message', (data: Buffer) => {
           try {
             const msg = JSON.parse(data.toString());
-            addEvent('gateway_ws_message_received', { type: msg.type });
 
-            if (msg.type === 'agent_response') {
-              addEvent('agent_response', { message: msg.content || msg.message, source: 'gateway_ws' });
-            } else if (msg.type === 'agent_thinking') {
-              addEvent('agent_thinking', { message: msg.message, source: 'gateway_ws' });
-            } else if (msg.type === 'completed' || msg.type === 'done') {
-              addEvent('experiment_completed', { status: 'success', source: 'gateway_ws' });
-              exp.status = 'completed';
-              ws.close();
-              resolve();
+            // Handle connect.challenge
+            if (msg.type === 'event' && msg.event === 'connect.challenge') {
+              addEvent('acp_challenge_received', { nonce: msg.payload.nonce });
+              const connectReq = {
+                type: 'req',
+                id: 'connect-1',
+                method: 'connect',
+                params: {
+                  minProtocol: 3,
+                  maxProtocol: 3,
+                  client: {
+                    id: 'node-host',
+                    version: '0.1.0',
+                    platform: 'node',
+                    mode: 'backend'
+                  },
+                  auth: {
+                    password: ''
+                  }
+                }
+              };
+              ws.send(JSON.stringify(connectReq));
+              addEvent('acp_connect_sent', {});
+            }
+            // Handle connect response
+            else if (msg.type === 'res' && msg.id === 'connect-1') {
+              if (msg.ok) {
+                clearTimeout(timeout);
+                handshakeComplete = true;
+                addEvent('acp_handshake_complete', {});
+
+                // Send prompt
+                const promptReq = {
+                  type: 'req',
+                  id: 'prompt-1',
+                  method: 'session.prompt',
+                  params: {
+                    sessionKey: 'agent:main:main',
+                    prompt: task
+                  }
+                };
+                ws.send(JSON.stringify(promptReq));
+                promptSent = true;
+                addEvent('acp_prompt_sent', { task: task.substring(0, 50) });
+              } else {
+                addEvent('acp_connect_failed', { error: msg.error });
+                reject(new Error(`ACP connect failed: ${msg.error?.message}`));
+              }
+            }
+            // Handle prompt response
+            else if (msg.type === 'res' && msg.id === 'prompt-1') {
+              addEvent('acp_prompt_response', { ok: msg.ok });
+            }
+            // Handle agent events
+            else if (msg.type === 'event') {
+              addEvent('acp_event', { event: msg.event });
             }
           } catch (err) {
-            addEvent('gateway_ws_parse_error', { error: (err as Error).message });
+            addEvent('acp_parse_error', { error: (err as Error).message });
           }
         });
 
         ws.on('error', (err) => {
-          addEvent('gateway_ws_error', { error: err.message });
-          if (!connected) reject(err);
+          addEvent('acp_error', { error: err.message });
+          if (!handshakeComplete) reject(err);
         });
 
         ws.on('close', () => {
-          addEvent('gateway_ws_closed', {});
+          addEvent('acp_closed', {});
           if (exp.status !== 'completed') {
-            addEvent('gateway_ws_no_completion', { note: 'WebSocket closed before completion' });
+            addEvent('acp_incomplete', { handshakeComplete, promptSent });
             exp.status = 'completed';
           }
           resolve();
         });
 
-        // Auto-complete after 30s if no completion message
         setTimeout(() => {
           if (exp.status !== 'completed') {
-            addEvent('gateway_ws_timeout', { note: 'No completion after 30s' });
+            addEvent('acp_timeout', {});
             exp.status = 'completed';
             ws.close();
             resolve();
@@ -366,12 +401,12 @@ export class AgentLabConnector {
         }, 30000);
       });
 
-      console.log(`✅ Experiment ${experimentId.substring(0, 8)} completed via Gateway WebSocket`);
+      console.log(`✅ Experiment ${experimentId.substring(0, 8)} completed`);
     } catch (err) {
-      addEvent('gateway_ws_failed', { error: (err as Error).message });
-      addEvent('experiment_completed', { status: 'failed', source: 'gateway_ws', error: (err as Error).message });
+      addEvent('acp_failed', { error: (err as Error).message });
+      addEvent('experiment_completed', { status: 'failed', error: (err as Error).message });
       exp.status = 'failed';
-      console.error(`❌ Gateway WebSocket failed: ${(err as Error).message}`);
+      console.error(`❌ ACP failed: ${(err as Error).message}`);
     }
   }
 
