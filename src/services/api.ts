@@ -68,6 +68,12 @@ export const api = {
     if (!res.ok) throw new Error(`Failed to stop experiment: ${res.statusText}`);
   },
 
+  async retryExperiment(id: string): Promise<ExperimentResponse> {
+    const res = await fetch(`${API_BASE}/api/experiments/${id}/retry`, { method: 'POST' });
+    if (!res.ok) throw new Error(`Failed to retry experiment: ${res.statusText}`);
+    return res.json();
+  },
+
   async getExperimentEvents(id: string): Promise<ExperimentEvent[]> {
     const res = await fetch(`${API_BASE}/api/experiments/${id}/events`);
     if (!res.ok) throw new Error(`Failed to get events: ${res.statusText}`);

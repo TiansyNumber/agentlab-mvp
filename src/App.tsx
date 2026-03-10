@@ -16,6 +16,7 @@ function App() {
   const [selectedId, setSelectedId] = useState<string>('')
   const [selectedRuntimeId, setSelectedRuntimeId] = useState<string>('')
   const [selectedRuntimeMode, setSelectedRuntimeMode] = useState<string>('')
+  const [backendExperimentId, setBackendExperimentId] = useState<string>('')
   const [experiments, setExperiments] = useState<Experiment[]>([])
   const [skills, setSkills] = useState<SkillDraft[]>([])
   const [runnerType, setRunnerType] = useState<RunnerType>('mock')
@@ -56,6 +57,7 @@ function App() {
         owner: 'default-user',
         task: exp.description
       });
+      setBackendExperimentId(result.id);
       addEvent(expId, createEvent('action', `后端实验已启动: ${result.id}`));
       updateStatus(expId, 'running');
 
@@ -70,6 +72,9 @@ function App() {
 
               if (e.type === 'experiment_completed') {
                 updateStatus(expId, 'success');
+                clearInterval(pollEvents);
+              } else if (e.type === 'experiment_stopped') {
+                updateStatus(expId, 'failed');
                 clearInterval(pollEvents);
               }
             });
@@ -136,10 +141,33 @@ function App() {
   }
 
   const handleStop = async () => {
-    if (runnerRef.current) {
-      await runnerRef.current.stop()
-      updateStatus(selectedId, 'failed')
-      runnerRef.current = null
+    if (backendExperimentId) {
+      try {
+        await api.stopExperiment(backendExperimentId);
+        addEvent(selectedId, createEvent('stop', '后端实验已停止'));
+        updateStatus(selectedId, 'failed');
+        setBackendExperimentId('');
+      } catch (err) {
+        addEvent(selectedId, createEvent('failed', '停止失败: ' + (err as Error).message));
+      }
+    } else if (runnerRef.current) {
+      await runnerRef.current.stop();
+      updateStatus(selectedId, 'failed');
+      runnerRef.current = null;
+    }
+  }
+
+  const handleRetry = async () => {
+    const exp = experiments.find(e => e.id === selectedId);
+    if (!exp || !backendExperimentId) return;
+
+    try {
+      const result = await api.retryExperiment(backendExperimentId);
+      addEvent(selectedId, createEvent('action', `重试实验: ${result.id}`));
+      setBackendExperimentId(result.id);
+      updateStatus(selectedId, 'running');
+    } catch (err) {
+      addEvent(selectedId, createEvent('failed', '重试失败: ' + (err as Error).message));
     }
   }
 
@@ -207,6 +235,7 @@ function App() {
         onMarkFailed={handleMarkFailed}
         onGenerateSkill={handleGenerateSkill}
         onStartWithBackend={() => handleStartWithBackend(selectedId)}
+        onRetry={backendExperimentId ? handleRetry : undefined}
       />}
       {view === 'settings' && <Settings onBack={() => setView('list')} />}
       {view === 'openclaw-debug' && <OpenClawDebugPanel onBack={() => setView('list')} />}

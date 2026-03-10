@@ -2,7 +2,7 @@
 // This layer is Cloudflare-ready and handles HTTP requests
 
 import { registerRuntime, updateHeartbeat, listRuntimes, getRuntime } from './api/runtime-registry';
-import { startExperiment, stopExperiment, getExperiment, getExperimentEvents } from './api/experiment-control';
+import { startExperiment, stopExperiment, getExperiment, getExperimentEvents, retryExperiment } from './api/experiment-control';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -73,6 +73,19 @@ export default {
         const id = url.pathname.split('/')[3];
         await stopExperiment(id);
         return Response.json({ ok: true }, { headers: corsHeaders });
+      }
+
+      if (url.pathname.match(/^\/api\/experiments\/(.+)\/retry$/) && request.method === 'POST') {
+        const id = url.pathname.split('/')[3];
+        const newExp = await retryExperiment(id);
+        return Response.json({
+          id: newExp.experiment_id,
+          runtime_id: newExp.runtime_id,
+          owner: newExp.owner,
+          task: newExp.task,
+          status: newExp.status,
+          created_at: new Date(newExp.created_at).toISOString()
+        }, { headers: corsHeaders });
       }
 
       if (url.pathname.match(/^\/api\/experiments\/(.+)\/events$/) && request.method === 'GET') {
