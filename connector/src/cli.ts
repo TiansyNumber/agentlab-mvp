@@ -18,15 +18,21 @@ const getArg = (flag: string, defaultValue: string) => {
   return idx >= 0 && args[idx + 1] ? args[idx + 1] : defaultValue;
 };
 
+const DISPATCH_PORT = parseInt(getArg('--dispatch-port', '18890'));
+
 const config = {
   backend: getArg('--backend', 'http://localhost:8787'),
   gateway: getArg('--gateway', 'http://localhost:18889'),
   name: getArg('--name', 'Local OpenClaw')
 };
 
-console.log('🚀 AgentLab Connector V0');
-console.log(`Backend: ${config.backend}`);
-console.log(`Gateway: ${config.gateway}`);
+// The dispatch server URL is what AgentLab backend will call for /experiments
+const dispatchUrl = `http://127.0.0.1:${DISPATCH_PORT}`;
+
+console.log('🚀 AgentLab Connector V1 (with dispatch server)');
+console.log(`Backend:         ${config.backend}`);
+console.log(`OpenClaw:        ${config.gateway}`);
+console.log(`Dispatch server: ${dispatchUrl}`);
 console.log(`Name: ${config.name}\n`);
 
 const connector = new AgentLabConnector(config);
@@ -36,15 +42,21 @@ try {
   await connector.checkBackend();
   console.log('✅ Backend is reachable\n');
 
-  console.log('Registering runtime...');
-  const runtime = await connector.register();
+  console.log(`Starting dispatch server on port ${DISPATCH_PORT}...`);
+  await connector.startDispatchServer(DISPATCH_PORT);
+
+  // Register with dispatch server URL as gateway_url so backend calls us for /experiments
+  console.log('Registering runtime (gateway_url → dispatch server)...');
+  const runtime = await connector.registerWithDispatch(dispatchUrl);
   console.log(`✅ Runtime registered: ${runtime.runtime_id}`);
   console.log(`Status: ${runtime.status}`);
-  console.log(`Device ID: ${runtime.device_id}\n`);
+  console.log(`Device ID: ${runtime.device_id}`);
+  console.log(`Gateway URL: ${runtime.gateway_url}\n`);
 
   console.log('Starting heartbeat (30s interval)...');
   connector.startHeartbeat();
   console.log('✅ Connector running. Press Ctrl+C to stop.\n');
+  console.log('Waiting for experiments from AgentLab...');
 
   process.on('SIGINT', () => {
     console.log('\n🛑 Stopping connector...');

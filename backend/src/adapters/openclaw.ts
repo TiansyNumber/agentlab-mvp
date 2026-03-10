@@ -182,9 +182,11 @@ export class OpenClawAdapter {
             this.emitEvent(evt.type, evt.data);
           }
 
-          // Check if completed
-          const completed = events.some((e: any) => e.type === 'experiment_completed');
-          if (completed) {
+          // Check if completed or failed
+          const done = events.some((e: any) =>
+            e.type === 'experiment_completed' || e.type === 'experiment_failed'
+          );
+          if (done) {
             return;
           }
         }
