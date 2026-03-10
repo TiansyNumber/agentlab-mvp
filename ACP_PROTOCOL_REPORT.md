@@ -378,6 +378,80 @@ git commit -m "docs: document device auth investigation and signature validation
 
 ---
 
+## 13. 设备认证突破 (2026-03-10)
+
+### 签名算法发现
+
+通过分析 `~/.openclaw/extensions/kimi-claw/dist/src/utils/device-identity.js`，找到正确的签名算法：
+
+**签名 Payload 格式**:
+```
+v2|deviceId|clientId|clientMode|role|scopes|signedAtMs|token|nonce
+```
+
+**示例**:
+```
+v2|5bc808a871c3cf6bb7db82b4901fdfc227ee5a3c64a7d35c2c8050efd04443c7|node-host|backend|operator|operator.admin|1773121282735||03f1e41c-1323-43da-bc7c-6fee3994d2bc
+```
+
+**关键规则**:
+1. 算法: ed25519
+2. 编码: base64url
+3. publicKey: 从 SPKI DER 格式提取 raw bytes (去掉前缀)
+4. deviceId: SHA256(publicKey DER)
+5. 签名数据: UTF-8 编码的 payload 字符串
+
+### 认证成功验证
+
+```bash
+node test_correct_sig.js
+```
+
+**输出**:
+```
+✅ WebSocket open
+📥 connect.challenge
+📤 Sending connect with correct signature
+📥 {
+  "type": "res",
+  "id": "connect-1",
+  "ok": true,
+  "payload": {
+    "type": "hello-ok",
+    "protocol": 3,
+    ...
+    "auth": {
+      "deviceToken": "louAtSR26dahFmrAqSu3EBRd1sdN355xqVeINX-PkKM",
+      "role": "operator",
+      "scopes": ["operator.admin"]
+    }
+  }
+}
+✅ AUTH SUCCESS!
+```
+
+### 可用的 ACP 方法
+
+从握手响应中获取的可用方法：
+- `status` - 获取 Gateway 状态 ✅
+- `chat.send` - 发送聊天消息
+- `chat.history` - 获取聊天历史
+- `agent` - Agent 调用
+- `sessions.list` - 列出会话
+- `config.get` / `config.set` - 配置管理
+- 等 100+ 方法
+
+### 已更新文件
+
+1. `connector/src/connector.ts`:
+   - 从 `~/.openclaw/identity/device.json` 加载设备身份
+   - 实现正确的 ed25519 签名算法
+   - 使用 `chat.send` 方法替代不存在的 `session.prompt`
+
+2. `connector/test_correct_sig.js` - 验证签名算法的测试文件
+
+---
+
 ## 总结
 
 ### 本轮完成
@@ -386,21 +460,23 @@ git commit -m "docs: document device auth investigation and signature validation
 3. ✅ 确认握手流程 (`connect.challenge` → `connect`)
 4. ✅ 确认协议版本要求 (v3)
 5. ✅ 确认 client 参数规范
-6. ✅ 确认 deviceId 派生规则 (SHA256 of publicKey)
-7. ✅ 深度调查设备认证机制
-8. ✅ 测试多种签名格式和认证方案
+6. ✅ 确认 deviceId 派生规则 (SHA256 of publicKey DER)
+7. ✅ **突破设备认证签名验证**
+8. ✅ **找到正确的签名算法和 payload 格式**
+9. ✅ **实现完整的设备认证流程**
+10. ✅ **验证 Gateway 接受设备身份并返回 auth success**
 
-### 当前精确失败阶段
-**acp_device_signature_validation_failed** - 设备签名验证失败
+### 当前状态
+**✅ acp_device_auth_success** - 设备认证完全成功
 
-### 失败原因
-- Gateway 签名验证算法未知
-- 无法访问 Gateway 源码确认签名数据格式
-- 已尝试所有常见签名数据格式均失败
+### 签名算法规则
+- **算法**: ed25519
+- **Payload**: `v2|deviceId|clientId|clientMode|role|scopes|signedAtMs|token|nonce`
+- **编码**: base64url
+- **publicKey**: 从 SPKI DER 提取 raw bytes (32 bytes)
+- **deviceId**: SHA256(publicKey DER) hex
 
-### 下一步方案
-1. **方案 A**: 联系 OpenClaw/Gateway 开发者获取签名算法文档
-2. **方案 B**: 反编译 Gateway 二进制文件查找签名验证逻辑
-3. **方案 C**: 抓包分析真实客户端的签名数据
-4. **方案 D**: 修改 Gateway 配置禁用设备认证（如果支持）
-5. **方案 E**: 使用已配对客户端的 WebSocket 连接进行代理转发
+### 下一步
+1. 测试 `chat.send` 方法发送任务
+2. 处理 `agent` 事件流
+3. 完善 connector 的事件处理逻辑

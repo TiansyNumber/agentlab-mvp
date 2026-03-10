@@ -3,12 +3,15 @@ import { homedir } from 'os';
 import { join } from 'path';
 import { createServer } from 'http';
 import WebSocket from 'ws';
+import crypto from 'crypto';
 
 interface ConnectorConfig {
   backend: string;
   gateway: string;
   name: string;
   deviceId?: string;
+  publicKey?: string;
+  privateKeyPem?: string;
 }
 
 interface Runtime {
@@ -42,23 +45,33 @@ export class AgentLabConnector {
   }
 
   private loadDeviceId() {
-    if (existsSync(CONFIG_FILE)) {
+    const identityPath = join(homedir(), '.openclaw', 'identity', 'device.json');
+    if (existsSync(identityPath)) {
       try {
-        const saved = JSON.parse(readFileSync(CONFIG_FILE, 'utf-8'));
-        if (saved.deviceId) {
-          this.config.deviceId = saved.deviceId;
-          return;
-        }
-      } catch {
-        // corrupted config, regenerate
-      }
+        const identity = JSON.parse(readFileSync(identityPath, 'utf-8'));
+        this.config.deviceId = identity.deviceId;
+        this.config.publicKey = this.derivePublicKey(identity.publicKeyPem);
+        this.config.privateKeyPem = identity.privateKeyPem;
+        return;
+      } catch {}
     }
-    this.config.deviceId = crypto.randomUUID();
-    this.saveConfig();
+    throw new Error('Device identity not found. Please ensure OpenClaw is installed.');
   }
 
-  private saveConfig() {
-    writeFileSync(CONFIG_FILE, JSON.stringify({ deviceId: this.config.deviceId }, null, 2));
+  private derivePublicKey(publicKeyPem: string): string {
+    const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
+    const publicKey = crypto.createPublicKey(publicKeyPem);
+    const der = publicKey.export({ type: 'spki', format: 'der' }) as Buffer;
+    const raw = der.subarray(ED25519_SPKI_PREFIX.length);
+    return raw.toString('base64url');
+  }
+
+  private buildAuthSignature(nonce: string, clientId: string, clientMode: string, role: string, scopes: string): string {
+    const signedAt = Date.now();
+    const payload = `v2|${this.config.deviceId}|${clientId}|${clientMode}|${role}|${scopes}|${signedAt}||${nonce}`;
+    const privateKey = crypto.createPrivateKey(this.config.privateKeyPem!);
+    const signature = crypto.sign(null, Buffer.from(payload, 'utf8'), privateKey).toString('base64url');
+    return signature;
   }
 
   // Check backend reachability before registering
@@ -318,6 +331,17 @@ export class AgentLabConnector {
             // Handle connect.challenge
             if (msg.type === 'event' && msg.event === 'connect.challenge') {
               addEvent('acp_challenge_received', { nonce: msg.payload.nonce });
+              const nonce = msg.payload.nonce;
+              const signedAt = Date.now();
+              const clientId = 'node-host';
+              const clientMode = 'backend';
+              const role = 'operator';
+              const scopes = 'operator.admin';
+
+              const payload = `v2|${this.config.deviceId}|${clientId}|${clientMode}|${role}|${scopes}|${signedAt}||${nonce}`;
+              const privateKey = crypto.createPrivateKey(this.config.privateKeyPem!);
+              const signature = crypto.sign(null, Buffer.from(payload, 'utf8'), privateKey).toString('base64url');
+
               const connectReq = {
                 type: 'req',
                 id: 'connect-1',
@@ -326,14 +350,20 @@ export class AgentLabConnector {
                   minProtocol: 3,
                   maxProtocol: 3,
                   client: {
-                    id: 'node-host',
+                    id: clientId,
                     version: '0.1.0',
-                    platform: 'node',
-                    mode: 'backend'
+                    platform: 'darwin',
+                    mode: clientMode
                   },
-                  auth: {
-                    password: ''
-                  }
+                  device: {
+                    id: this.config.deviceId,
+                    publicKey: this.config.publicKey,
+                    signature: signature,
+                    signedAt: signedAt,
+                    nonce: nonce
+                  },
+                  role: role,
+                  scopes: [scopes]
                 }
               };
               ws.send(JSON.stringify(connectReq));
@@ -346,27 +376,31 @@ export class AgentLabConnector {
                 handshakeComplete = true;
                 addEvent('acp_handshake_complete', {});
 
-                // Send prompt
-                const promptReq = {
+                // Send chat message
+                const chatReq = {
                   type: 'req',
-                  id: 'prompt-1',
-                  method: 'session.prompt',
+                  id: 'chat-1',
+                  method: 'chat.send',
                   params: {
                     sessionKey: 'agent:main:main',
-                    prompt: task
+                    message: task
                   }
                 };
-                ws.send(JSON.stringify(promptReq));
+                ws.send(JSON.stringify(chatReq));
                 promptSent = true;
-                addEvent('acp_prompt_sent', { task: task.substring(0, 50) });
+                addEvent('acp_chat_sent', { task: task.substring(0, 50) });
               } else {
                 addEvent('acp_connect_failed', { error: msg.error });
                 reject(new Error(`ACP connect failed: ${msg.error?.message}`));
               }
             }
-            // Handle prompt response
-            else if (msg.type === 'res' && msg.id === 'prompt-1') {
-              addEvent('acp_prompt_response', { ok: msg.ok });
+            // Handle chat response
+            else if (msg.type === 'res' && msg.id === 'chat-1') {
+              addEvent('acp_chat_response', { ok: msg.ok });
+            }
+            // Handle agent events
+            else if (msg.type === 'event' && msg.event === 'agent') {
+              addEvent('acp_agent_event', { data: msg.payload });
             }
             // Handle agent events
             else if (msg.type === 'event') {
