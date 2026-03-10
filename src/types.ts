@@ -14,8 +14,6 @@ export interface Experiment {
   status: ExperimentStatus
   createdAt: string
   events: Event[]
-  runtimeId?: string
-  runtimeMode?: string
 }
 
 export interface Event {

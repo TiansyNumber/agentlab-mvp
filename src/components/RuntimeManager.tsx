@@ -4,10 +4,9 @@ import { api, Runtime } from '../services/api';
 interface Props {
   onBack: () => void;
   onSelectRuntime: (runtimeId: string, mode: string) => void;
-  selectedRuntimeId?: string;
 }
 
-export default function RuntimeManager({ onBack, onSelectRuntime, selectedRuntimeId }: Props) {
+export default function RuntimeManager({ onBack, onSelectRuntime }: Props) {
   const [runtimes, setRuntimes] = useState<Runtime[]>([]);
   const [owner, setOwner] = useState('default-user');
   const [loading, setLoading] = useState(false);
@@ -18,6 +17,7 @@ export default function RuntimeManager({ onBack, onSelectRuntime, selectedRuntim
   const loadRuntimes = async () => {
     setLoading(true);
     try {
+      // Load all runtimes (no owner filter) so CLI-registered runtimes are visible
       const data = await api.listRuntimes();
       setRuntimes(data);
     } catch (err) {
@@ -54,83 +54,12 @@ export default function RuntimeManager({ onBack, onSelectRuntime, selectedRuntim
     loadRuntimes();
   }, []);
 
-  const getModeLabel = (m: string) => {
-    const labels: Record<string, string> = { demo: '🎭 Demo', simulated: '🔧 Simulated', real: '🟢 Real (CLI)' };
-    return labels[m] || m;
-  };
-
-  const online = runtimes.filter(r => r.status === 'online');
-  const offline = runtimes.filter(r => r.status !== 'online');
-
   return (
     <div>
       <button onClick={onBack}>← 返回</button>
-      <h2>Runtime 管理中心</h2>
-
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '20px', padding: '12px 16px', backgroundColor: '#f5f5f5', borderRadius: '6px' }}>
-        <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>● 在线: {online.length}</span>
-        <span style={{ color: '#999' }}>○ 离线: {offline.length}</span>
-        <span style={{ color: '#2196F3' }}>Real: {runtimes.filter(r => r.mode === 'real').length}</span>
-        <span style={{ color: '#888' }}>Simulated: {runtimes.filter(r => r.mode === 'simulated').length}</span>
-        <span style={{ color: '#888' }}>Demo: {runtimes.filter(r => r.mode === 'demo').length}</span>
-      </div>
-
-      {loading ? <p>加载中...</p> : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px', marginBottom: '24px' }}>
-          {runtimes.map(r => {
-            const isSelected = r.id === selectedRuntimeId;
-            const isOnline = r.status === 'online';
-            return (
-              <div key={r.id} style={{
-                border: isSelected ? '2px solid #2196F3' : `2px solid ${r.mode === 'real' ? '#4CAF50' : '#ddd'}`,
-                borderRadius: '8px',
-                padding: '14px',
-                backgroundColor: isSelected ? '#e3f2fd' : (isOnline ? '#fafafa' : '#f5f5f5'),
-                opacity: isOnline ? 1 : 0.7,
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <strong>{getModeLabel(r.mode)}</strong>
-                  <span style={{
-                    backgroundColor: isOnline ? '#4CAF50' : '#999',
-                    color: 'white',
-                    padding: '2px 8px',
-                    borderRadius: '12px',
-                    fontSize: '0.8em',
-                  }}>{r.status}</span>
-                </div>
-                <div style={{ fontSize: '0.85em', color: '#666', lineHeight: '1.6', marginBottom: '10px' }}>
-                  <div><span style={{ color: '#999' }}>ID:</span> {r.id.slice(0, 14)}...</div>
-                  <div><span style={{ color: '#999' }}>Owner:</span> {r.owner}</div>
-                  {r.device_id && <div><span style={{ color: '#999' }}>Device:</span> {r.device_id.slice(0, 16)}...</div>}
-                  {r.gateway_url && <div><span style={{ color: '#999' }}>Gateway:</span> {(() => { try { return new URL(r.gateway_url!).host; } catch { return r.gateway_url; } })()}</div>}
-                </div>
-                {isSelected && <div style={{ fontSize: '0.85em', color: '#2196F3', marginBottom: '8px', fontWeight: 'bold' }}>✓ 当前选中</div>}
-                <button
-                  onClick={() => onSelectRuntime(r.id, r.mode)}
-                  disabled={!isOnline}
-                  style={{
-                    width: '100%',
-                    backgroundColor: isSelected ? '#1565C0' : (isOnline ? '#2196F3' : '#ccc'),
-                    color: 'white',
-                    border: 'none',
-                    padding: '7px',
-                    borderRadius: '4px',
-                    cursor: isOnline ? 'pointer' : 'not-allowed',
-                    fontSize: '0.9em',
-                  }}
-                >{isSelected ? '已选中' : '选择此 Runtime'}</button>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      <div style={{ marginBottom: '10px' }}>
-        <button onClick={loadRuntimes} disabled={loading} style={{ marginRight: '10px' }}>刷新列表</button>
-      </div>
-
-      <div style={{ marginTop: '20px', border: '1px solid #ddd', padding: '16px', borderRadius: '6px' }}>
-        <h3 style={{ marginTop: 0 }}>注册新 Runtime</h3>
+      <h2>Runtime 管理</h2>
+      <div style={{ marginBottom: 20, border: '1px solid #ccc', padding: 10 }}>
+        <h3>注册新 Runtime</h3>
         <div style={{ marginBottom: 10 }}>
           <label>Owner: </label>
           <input value={owner} onChange={e => setOwner(e.target.value)} placeholder="Owner" />
@@ -157,6 +86,44 @@ export default function RuntimeManager({ onBack, onSelectRuntime, selectedRuntim
         )}
         <button onClick={handleRegister} disabled={loading}>注册 Runtime</button>
       </div>
+      <div style={{ marginBottom: 10 }}>
+        <button onClick={loadRuntimes} disabled={loading}>刷新列表</button>
+      </div>
+      {loading ? <p>加载中...</p> : (
+        <>
+          {runtimes.some(r => r.mode === 'real') && (
+            <p style={{ color: 'green', fontWeight: 'bold' }}>✅ 检测到 CLI 接入的 real runtime，可直接选择使用</p>
+          )}
+          <table border={1} style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Owner</th>
+                <th>Type</th>
+                <th>Mode</th>
+                <th>Status</th>
+                <th>Device ID</th>
+                <th>Gateway</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {runtimes.map(r => (
+                <tr key={r.id} style={{ backgroundColor: r.mode === 'real' ? '#e8f5e9' : 'transparent' }}>
+                  <td title={r.id}>{r.id.slice(0, 8)}...</td>
+                  <td>{r.owner}</td>
+                  <td>{r.type}</td>
+                  <td><strong>{r.mode === 'real' ? '🟢 real (CLI)' : r.mode}</strong></td>
+                  <td style={{ color: r.status === 'online' ? 'green' : 'gray' }}>{r.status}</td>
+                  <td>{r.device_id ? r.device_id.slice(0, 12) + '...' : '-'}</td>
+                  <td>{r.gateway_url ? (() => { try { return new URL(r.gateway_url!).host; } catch { return r.gateway_url; } })() : '-'}</td>
+                  <td><button onClick={() => onSelectRuntime(r.id, r.mode)}>选择</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
     </div>
   );
 }
