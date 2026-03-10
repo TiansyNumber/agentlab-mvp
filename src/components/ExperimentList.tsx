@@ -4,9 +4,10 @@ interface Props {
   experiments: Experiment[]
   onSelect: (id: string) => void
   onCreate: () => void
+  runtimes?: Array<{ id: string; mode: string; status: string }>
 }
 
-export default function ExperimentList({ experiments, onSelect, onCreate }: Props) {
+export default function ExperimentList({ experiments, onSelect, onCreate, runtimes = [] }: Props) {
   const statusColor = (status: string) => ({
     draft: '#999',
     running: '#2196F3',
@@ -14,6 +15,16 @@ export default function ExperimentList({ experiments, onSelect, onCreate }: Prop
     success: '#4CAF50',
     failed: '#F44336'
   }[status] || '#999')
+
+  const getRuntimeInfo = (runtimeId?: string) => {
+    if (!runtimeId) return null;
+    return runtimes.find(r => r.id === runtimeId);
+  };
+
+  const getRuntimeModeLabel = (mode: string) => {
+    const labels: Record<string, string> = { demo: '🎭 Demo', simulated: '🔧 Sim', real: '🟢 Real' };
+    return labels[mode] || mode;
+  };
 
   const pending = experiments.filter(e => e.status === 'draft')
   const running = experiments.filter(e => e.status === 'running' || e.status === 'paused')
@@ -28,7 +39,9 @@ export default function ExperimentList({ experiments, onSelect, onCreate }: Prop
         {items.length === 0 ? (
           <div style={{ padding: 20, textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>暂无任务</div>
         ) : (
-          items.map(exp => (
+          items.map(exp => {
+            const runtime = getRuntimeInfo(exp.runtime_id);
+            return (
             <div key={exp.id} onClick={() => onSelect(exp.id)} style={{
               padding: 12,
               border: `1px solid ${borderColor}`,
@@ -44,9 +57,14 @@ export default function ExperimentList({ experiments, onSelect, onCreate }: Prop
                 </span>
               </div>
               <p style={{ margin: 0, color: '#6b7280', fontSize: 12, lineHeight: 1.4 }}>{exp.description.slice(0, 60)}{exp.description.length > 60 ? '...' : ''}</p>
-              <div style={{ marginTop: 6, fontSize: 11, color: '#9ca3af' }}>{exp.createdAt}</div>
+              <div style={{ marginTop: 6, fontSize: 11, color: '#9ca3af', display: 'flex', gap: 8 }}>
+                <span>{exp.createdAt}</span>
+                {runtime && <span style={{ color: runtime.mode === 'real' ? '#10b981' : '#9ca3af' }}>Runtime: {getRuntimeModeLabel(runtime.mode)}</span>}
+                {exp.events && exp.events.length > 0 && <span>{exp.events.length} 事件</span>}
+              </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

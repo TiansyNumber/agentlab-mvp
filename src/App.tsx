@@ -21,12 +21,23 @@ function App() {
   const [experiments, setExperiments] = useState<Experiment[]>([])
   const [skills, setSkills] = useState<SkillDraft[]>([])
   const [runnerType, setRunnerType] = useState<RunnerType>('mock')
+  const [runtimes, setRuntimes] = useState<Array<{ id: string; mode: string; status: string }>>([])
   const runnerRef = useRef<IExperimentRunner | null>(null)
 
   useEffect(() => {
     setExperiments(loadExperiments())
     setSkills(loadSkills())
+    loadRuntimes()
   }, [])
+
+  const loadRuntimes = async () => {
+    try {
+      const data = await api.listRuntimes();
+      setRuntimes(data.map(r => ({ id: r.id, mode: r.mode, status: r.status })));
+    } catch (err) {
+      console.error('Failed to load runtimes:', err);
+    }
+  };
 
   useEffect(() => {
     saveExperiments(experiments)
@@ -349,7 +360,7 @@ function App() {
           <StatCard label="总实验数" value={experiments.length} color="#6b7280" />
         </div>
       </div>
-      {view === 'list' && <ExperimentList experiments={experiments} onSelect={id => { setSelectedId(id); setView('detail') }} onCreate={() => setView('create')} />}
+      {view === 'list' && <ExperimentList experiments={experiments} onSelect={id => { setSelectedId(id); setView('detail') }} onCreate={() => setView('create')} runtimes={runtimes} />}
       {view === 'create' && <ExperimentForm onSubmit={handleCreate} onCancel={() => setView('list')} />}
       {view === 'detail' && <ExperimentDetail
         experiment={experiments.find(e => e.id === selectedId)!}
