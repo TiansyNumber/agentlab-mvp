@@ -1,0 +1,17 @@
+{
+  "name": "agentlab-connector",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "agentlab-connect": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/cli.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
