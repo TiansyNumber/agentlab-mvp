@@ -37,7 +37,9 @@ function App() {
       ...data,
       status: 'draft' as const,
       createdAt: new Date().toLocaleString('zh-CN'),
-      events: [createEvent('start', '实验创建')]
+      events: [createEvent('start', '实验创建')],
+      runtimeId: selectedRuntimeId || undefined,
+      runtimeMode: selectedRuntimeMode || undefined
     }
     setExperiments([...experiments, newExp])
     setView('list')
@@ -239,7 +241,7 @@ function App() {
       />}
       {view === 'settings' && <Settings onBack={() => setView('list')} />}
       {view === 'openclaw-debug' && <OpenClawDebugPanel onBack={() => setView('list')} />}
-      {view === 'runtime' && <RuntimeManager onBack={() => setView('list')} onSelectRuntime={(id, mode) => { setSelectedRuntimeId(id); setSelectedRuntimeMode(mode); setView('list'); }} />}
+      {view === 'runtime' && <RuntimeManager onBack={() => setView('list')} onSelectRuntime={(id, mode) => { setSelectedRuntimeId(id); setSelectedRuntimeMode(mode); setView('list'); }} selectedRuntimeId={selectedRuntimeId} />}
     </div>
   )
 }
