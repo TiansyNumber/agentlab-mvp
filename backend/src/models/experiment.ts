@@ -24,6 +24,22 @@ export type FailureReason =
   | 'timeout'
   | 'unknown';
 
+export interface ExecutionStep {
+  step_id: string;
+  phase: ExperimentPhase;
+  started_at: number;
+  completed_at?: number;
+  status: 'running' | 'completed' | 'failed';
+  error?: string;
+}
+
+export interface ExecutionSummary {
+  total_actions: number;
+  key_actions: string[];
+  final_output?: string;
+  failure_step?: string;
+}
+
 export interface Experiment {
   experiment_id: string;
   runtime_id: string;
@@ -35,6 +51,8 @@ export interface Experiment {
   created_at: number;
   started_at?: number;
   completed_at?: number;
+  execution_steps?: ExecutionStep[];
+  execution_summary?: ExecutionSummary;
 }
 
 export interface ExperimentEvent {

@@ -1,11 +1,41 @@
 // Experiment Control API - Cloudflare Workers compatible
-import type { Experiment, ExperimentEvent } from '../models/experiment';
+import type { Experiment, ExperimentEvent, ExecutionStep, ExecutionSummary } from '../models/experiment';
 import type { Runtime } from '../models/runtime';
 import { startExperimentWithRuntime, stopExperimentAdapter } from '../services/experiment-manager';
 
 // In-memory store (replace with D1/KV in production)
 const experiments = new Map<string, Experiment>();
 const events = new Map<string, ExperimentEvent[]>();
+
+function addExecutionStep(exp: Experiment, phase: string): void {
+  if (!exp.execution_steps) exp.execution_steps = [];
+  exp.execution_steps.push({
+    step_id: crypto.randomUUID(),
+    phase: phase as any,
+    started_at: Date.now(),
+    status: 'running'
+  });
+}
+
+function completeCurrentStep(exp: Experiment, success: boolean, error?: string): void {
+  if (!exp.execution_steps?.length) return;
+  const current = exp.execution_steps[exp.execution_steps.length - 1];
+  current.completed_at = Date.now();
+  current.status = success ? 'completed' : 'failed';
+  if (error) current.error = error;
+}
+
+function updateExecutionSummary(exp: Experiment, events: ExperimentEvent[]): void {
+  const actions = events.filter(e => e.type.includes('action') || e.type.includes('agent_'));
+  const keyActions = actions.slice(0, 5).map(e => e.data?.message || e.type);
+
+  exp.execution_summary = {
+    total_actions: actions.length,
+    key_actions: keyActions,
+    final_output: events[events.length - 1]?.data?.message,
+    failure_step: exp.status === 'failed' ? exp.phase : undefined
+  };
+}
 
 export async function startExperiment(
   runtime_id: string,
@@ -24,41 +54,72 @@ export async function startExperiment(
     phase: 'created',
     created_at: Date.now(),
     started_at: Date.now(),
+    execution_steps: [],
   };
   experiments.set(experiment.experiment_id, experiment);
   events.set(experiment.experiment_id, []);
+
+  addExecutionStep(experiment, 'created');
 
   // Connect to runtime adapter
   const eventHandler = (event: ExperimentEvent) => {
     addExperimentEvent(experiment.experiment_id, event.type, event.data);
 
-    // Update phase based on events
-    if (event.type === 'connecting_gateway') experiment.phase = 'connecting';
-    else if (event.type === 'gateway_connected' || event.type === 'connected') experiment.phase = 'connected';
-    else if (event.type === 'authenticating') experiment.phase = 'authenticating';
-    else if (event.type === 'authenticated') experiment.phase = 'authenticated';
-    else if (event.type === 'task_submitted' || event.type === 'submitting_experiment') experiment.phase = 'command_sent';
-    else if (event.type === 'agent_thinking' || event.type === 'agent_action') experiment.phase = 'execution_running';
-    else if (event.type === 'experiment_completed') {
+    // Update phase and steps based on events
+    if (event.type === 'connecting_gateway') {
+      completeCurrentStep(experiment, true);
+      experiment.phase = 'connecting';
+      addExecutionStep(experiment, 'connecting');
+    } else if (event.type === 'gateway_connected' || event.type === 'connected') {
+      completeCurrentStep(experiment, true);
+      experiment.phase = 'connected';
+      addExecutionStep(experiment, 'connected');
+    } else if (event.type === 'authenticating') {
+      completeCurrentStep(experiment, true);
+      experiment.phase = 'authenticating';
+      addExecutionStep(experiment, 'authenticating');
+    } else if (event.type === 'authenticated') {
+      completeCurrentStep(experiment, true);
+      experiment.phase = 'authenticated';
+      addExecutionStep(experiment, 'authenticated');
+    } else if (event.type === 'task_submitted' || event.type === 'submitting_experiment') {
+      completeCurrentStep(experiment, true);
+      experiment.phase = 'command_sent';
+      addExecutionStep(experiment, 'command_sent');
+    } else if (event.type === 'agent_thinking' || event.type === 'agent_action') {
+      if (experiment.phase !== 'execution_running') {
+        completeCurrentStep(experiment, true);
+        experiment.phase = 'execution_running';
+        addExecutionStep(experiment, 'execution_running');
+      }
+    } else if (event.type === 'experiment_completed') {
+      completeCurrentStep(experiment, true);
       experiment.phase = 'execution_completed';
       experiment.status = 'completed';
       experiment.completed_at = Date.now();
+      updateExecutionSummary(experiment, events.get(experiment.experiment_id) || []);
     } else if (event.type === 'experiment_failed') {
+      completeCurrentStep(experiment, false, event.data?.error);
       experiment.phase = 'execution_failed';
       experiment.status = 'failed';
       experiment.failure_reason = 'unknown';
       experiment.completed_at = Date.now();
+      updateExecutionSummary(experiment, events.get(experiment.experiment_id) || []);
     } else if (event.type === 'experiment_timeout') {
+      completeCurrentStep(experiment, false, 'Timeout');
       experiment.phase = 'execution_failed';
       experiment.status = 'failed';
       experiment.failure_reason = 'timeout';
       experiment.completed_at = Date.now();
+      updateExecutionSummary(experiment, events.get(experiment.experiment_id) || []);
     } else if (event.type === 'disconnected') {
+      completeCurrentStep(experiment, false, 'Disconnected');
       experiment.phase = 'disconnected';
       if (experiment.status === 'running') {
         experiment.status = 'failed';
         experiment.failure_reason = 'runtime_disconnected';
       }
+      updateExecutionSummary(experiment, events.get(experiment.experiment_id) || []);
     }
   };
 

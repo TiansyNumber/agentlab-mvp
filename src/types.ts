@@ -1,5 +1,23 @@
 export type ExperimentStatus = 'draft' | 'running' | 'paused' | 'success' | 'failed'
 
+export type ExperimentPhase = 'created' | 'connecting' | 'connected' | 'authenticating' | 'authenticated' | 'command_sent' | 'action_received' | 'execution_running' | 'execution_completed' | 'execution_failed' | 'disconnected'
+
+export interface ExecutionStep {
+  step_id: string
+  phase: ExperimentPhase
+  started_at: number
+  completed_at?: number
+  status: 'running' | 'completed' | 'failed'
+  error?: string
+}
+
+export interface ExecutionSummary {
+  total_actions: number
+  key_actions: string[]
+  final_output?: string
+  failure_step?: string
+}
+
 export interface Experiment {
   id: string
   name: string
@@ -14,6 +32,9 @@ export interface Experiment {
   status: ExperimentStatus
   createdAt: string
   events: Event[]
+  phase?: ExperimentPhase
+  execution_steps?: ExecutionStep[]
+  execution_summary?: ExecutionSummary
 }
 
 export interface Event {
