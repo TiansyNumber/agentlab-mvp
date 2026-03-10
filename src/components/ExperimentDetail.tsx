@@ -35,25 +35,96 @@ export default function ExperimentDetail({ experiment, onBack, onResume, onPause
   const canGenerateSkill = experiment.status === 'success'
   const canRetry = (experiment.status === 'failed' || experiment.status === 'success') && onRetry
 
-  const statusColor = {
-    draft: '#999',
-    running: '#2196F3',
-    paused: '#FF9800',
-    success: '#4CAF50',
-    failed: '#F44336'
-  }[experiment.status]
+  const currentStep = experiment.execution_steps?.find(s => s.status === 'running')
+  const needsIntervention = experiment.status === 'paused' || (experiment.status === 'running' && canMark)
 
   return (
     <div>
       <button onClick={onBack} style={{ marginBottom: '15px' }}>← 返回</button>
-      <h2>{experiment.name}</h2>
-      <p><strong>状态:</strong> <span style={{ color: statusColor, fontWeight: 'bold' }}>{experiment.status}</span></p>
+
+      {/* Agent Lab Hero */}
+      <div style={{
+        background: experiment.status === 'running' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' :
+                    experiment.status === 'paused' ? 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' :
+                    experiment.status === 'success' ? 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' :
+                    experiment.status === 'failed' ? 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' :
+                    'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+        borderRadius: '12px',
+        padding: '24px',
+        marginBottom: '20px',
+        color: 'white',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+          <div>
+            <div style={{ fontSize: '13px', opacity: 0.9, marginBottom: '4px' }}>🧪 实验室</div>
+            <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 700 }}>{experiment.name}</h2>
+          </div>
+          <div style={{
+            background: 'rgba(255,255,255,0.25)',
+            padding: '6px 14px',
+            borderRadius: '20px',
+            fontSize: '13px',
+            fontWeight: 600,
+            backdropFilter: 'blur(10px)'
+          }}>
+            {experiment.status === 'running' ? '🔬 实验中' :
+             experiment.status === 'paused' ? '⏸️ 已暂停' :
+             experiment.status === 'success' ? '✅ 成功' :
+             experiment.status === 'failed' ? '❌ 失败' : '📝 草稿'}
+          </div>
+        </div>
+
+        {currentStep && (
+          <div style={{
+            background: 'rgba(255,255,255,0.2)',
+            borderRadius: '8px',
+            padding: '12px 16px',
+            marginBottom: '12px',
+            backdropFilter: 'blur(10px)'
+          }}>
+            <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '4px' }}>Agent 正在执行</div>
+            <div style={{ fontSize: '16px', fontWeight: 600 }}>
+              {phaseLabels[currentStep.phase]}
+              <span style={{ marginLeft: '8px', fontSize: '14px', opacity: 0.8 }}>⟳</span>
+            </div>
+          </div>
+        )}
+
+        {needsIntervention && (
+          <div style={{
+            background: 'rgba(255,255,255,0.95)',
+            color: '#1a1a1a',
+            borderRadius: '8px',
+            padding: '14px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+          }}>
+            <span style={{ fontSize: '24px' }}>👋</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '2px' }}>需要你的决策</div>
+              <div style={{ fontSize: '12px', opacity: 0.7 }}>
+                {experiment.status === 'paused' ? '实验已暂停，等待你继续' : '可以标记实验结果或继续观察'}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       <p><strong>描述:</strong> {experiment.description}</p>
-      <p><strong>成功标准:</strong> {experiment.successCriteria}</p>
-      <p><strong>失败条件:</strong> {experiment.failureConditions}</p>
-      <p><strong>模型:</strong> {experiment.model}</p>
-      <p><strong>工具:</strong> {experiment.tools.join(', ') || '无'}</p>
-      <p><strong>限制:</strong> 最大步数 {experiment.maxSteps} | 最大Token {experiment.maxTokens} | 最大时长 {experiment.maxDuration}分钟</p>
+      <details style={{ marginBottom: '16px' }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 600, marginBottom: '8px' }}>📋 实验配置</summary>
+        <div style={{ paddingLeft: '16px', fontSize: '14px', color: '#555' }}>
+          <p><strong>描述:</strong> {experiment.description}</p>
+          <p><strong>成功标准:</strong> {experiment.successCriteria}</p>
+          <p><strong>失败条件:</strong> {experiment.failureConditions}</p>
+          <p><strong>模型:</strong> {experiment.model}</p>
+          <p><strong>工具:</strong> {experiment.tools.join(', ') || '无'}</p>
+          <p><strong>限制:</strong> 最大步数 {experiment.maxSteps} | 最大Token {experiment.maxTokens} | 最大时长 {experiment.maxDuration}分钟</p>
+        </div>
+      </details>
 
       <div style={{ marginTop: '15px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
         {onStartWithBackend && <button onClick={onStartWithBackend} disabled={experiment.status !== 'draft'} style={{ backgroundColor: '#2196F3', color: 'white' }}>后端启动</button>}

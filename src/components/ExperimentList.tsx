@@ -59,7 +59,34 @@ export default function ExperimentList({ experiments, onSelect, onCreate }: Prop
         <button onClick={onCreate} style={{ backgroundColor: '#3b82f6', color: 'white', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>+ 创建实验</button>
       </div>
       {experiments.length === 0 ? (
-        <p style={{ color: '#9ca3af', textAlign: 'center', padding: '60px 0', fontSize: 14 }}>暂无实验，点击"创建实验"开始</p>
+        <div style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          borderRadius: '12px',
+          padding: '32px',
+          color: 'white',
+          textAlign: 'center',
+          maxWidth: '600px',
+          margin: '40px auto'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🧪</div>
+          <h3 style={{ margin: '0 0 12px 0', fontSize: '20px' }}>欢迎来到 Agent 实验室</h3>
+          <p style={{ margin: '0 0 20px 0', opacity: 0.9, fontSize: '14px', lineHeight: 1.6 }}>
+            创建实验，让 Agent 替你执行任务。<br/>
+            Agent 会自主工作，关键时刻会叫你回来决策。
+          </p>
+          <button onClick={onCreate} style={{
+            background: 'white',
+            color: '#667eea',
+            padding: '10px 24px',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontWeight: 700,
+            fontSize: '14px'
+          }}>
+            🚀 开始第一个实验
+          </button>
+        </div>
       ) : (
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
           {renderZone('待执行', pending, '#fef3c7', '#f59e0b')}
