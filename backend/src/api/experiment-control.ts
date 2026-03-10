@@ -64,8 +64,12 @@ export async function getExperiment(experiment_id: string): Promise<Experiment |
   return experiments.get(experiment_id) || null;
 }
 
-export async function getExperimentEvents(experiment_id: string): Promise<ExperimentEvent[]> {
-  return events.get(experiment_id) || [];
+export async function getExperimentEvents(experiment_id: string, since?: number): Promise<ExperimentEvent[]> {
+  const allEvents = events.get(experiment_id) || [];
+  if (since !== undefined) {
+    return allEvents.filter(e => e.timestamp > since);
+  }
+  return allEvents;
 }
 
 export async function addExperimentEvent(experiment_id: string, type: string, data: any): Promise<void> {

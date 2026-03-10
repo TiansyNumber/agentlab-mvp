@@ -77,7 +77,8 @@ export default {
 
       if (url.pathname.match(/^\/api\/experiments\/(.+)\/events$/) && request.method === 'GET') {
         const id = url.pathname.split('/')[3];
-        const events = await getExperimentEvents(id);
+        const since = url.searchParams.get('since');
+        const events = await getExperimentEvents(id, since ? parseInt(since) : undefined);
         return Response.json(events.map(e => ({
           id: e.event_id,
           experiment_id: e.experiment_id,
