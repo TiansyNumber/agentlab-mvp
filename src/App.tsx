@@ -38,7 +38,9 @@ function App() {
       ...data,
       status: 'draft' as const,
       createdAt: new Date().toLocaleString('zh-CN'),
-      events: [createEvent('start', '实验创建')]
+      events: [createEvent('start', '实验创建')],
+      runtime_id: selectedRuntimeId || undefined,
+      runtime_mode: selectedRuntimeMode || undefined
     }
     setExperiments([...experiments, newExp])
     setView('list')
