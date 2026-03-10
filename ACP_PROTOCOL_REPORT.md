@@ -290,14 +290,91 @@ node test_protocol_v3.mjs
 
 ---
 
-## 10. 最新 Commit
+## 10. 设备认证深度调查 (2026-03-10)
 
-```bash
-git add connector/src/connector.ts
-git commit -m "feat: align ACP protocol format with Gateway v3 requirements"
+### 已确认的认证机制
+
+#### deviceId 派生规则
+```javascript
+// deviceId = SHA256(publicKey_DER_bytes)
+const publicKeyDer = Buffer.from(publicKey, 'base64url');
+const deviceId = crypto.createHash('sha256').update(publicKeyDer).digest('hex');
 ```
 
-待执行。
+**验证结果**:
+- ✅ 现有设备 `5bc808a871c3cf6bb7db82b4901fdfc227ee5a3c64a7d35c2c8050efd04443c7`
+- ✅ 对应 publicKey `vGMD5taO3_6GooD-tAvRbhJS5I_GRTYS5wIAg_4gsFU`
+- ✅ SHA256 验证通过
+
+#### 签名验证失败
+
+**尝试的签名数据格式**:
+1. ❌ `${deviceId}:${nonce}:${signedAt}` (base64url)
+2. ❌ `${deviceId}:${nonce}:${signedAt}` (base64)
+3. ❌ `${deviceId}:${nonce}:${signedAt}` (hex)
+4. ❌ `JSON.stringify({deviceId, nonce, signedAt})` (base64url)
+5. ❌ `${nonce}` only (base64url)
+
+**错误信息**:
+```
+code: "INVALID_REQUEST"
+message: "device signature invalid"
+details: { code: "DEVICE_AUTH_SIGNATURE_INVALID", reason: "device-signature" }
+```
+
+#### deviceToken 认证失败
+
+**尝试方案**:
+1. ❌ `auth: { token: "..." }` → 仍要求 device identity
+2. ❌ `auth: { deviceToken: "..." }` → 仍要求 device identity
+3. ❌ `device + auth: { deviceToken }` → 签名验证失败
+
+### 当前精确失败阶段
+
+**Phase**: `acp_device_signature_validation_failed`
+
+**状态**:
+- ✅ WebSocket 连接成功
+- ✅ 接收 `connect.challenge` 事件
+- ✅ 协议格式正确 (type: req, method: connect)
+- ✅ Protocol v3 对齐
+- ✅ deviceId 派生规则正确
+- ❌ **设备签名验证失败** ← 当前卡点
+
+**根本原因**:
+- Gateway 的签名验证算法未知
+- 无法访问 Gateway 源码
+- 已有设备私钥但签名数据格式不匹配
+- deviceToken 无法绕过签名验证
+
+---
+
+## 11. 测试文件清单
+
+### 创建的测试文件
+1. `test_protocol_v3.mjs` - Protocol v3 基础测试
+2. `test_with_token.mjs` - Token 认证测试
+3. `test_device_auth.mjs` - 设备签名认证测试
+4. `test_pairing.mjs` - 新设备配对测试
+5. `test_real_auth.mjs` - 真实私钥签名测试
+6. `test_token_only.mjs` - 仅 deviceToken 测试
+7. `test_device_plus_token.mjs` - 设备+Token 组合测试
+8. `test_no_sig.mjs` - 无签名测试
+9. `test_sig_formats.mjs` - 签名格式测试 (base64)
+10. `test_hex_sig.mjs` - 签名格式测试 (hex)
+11. `test_json_sig.mjs` - JSON payload 签名测试
+12. `test_kimi_device.mjs` - kimi-bridge 设备测试
+13. `test_derived_id.mjs` - 派生 deviceId 测试
+14. `test_nonce_only.mjs` - 仅签名 nonce 测试
+
+---
+
+## 12. 最新 Commit
+
+```bash
+git add ACP_PROTOCOL_REPORT.md connector/test_*.mjs
+git commit -m "docs: document device auth investigation and signature validation failure"
+```
 
 ---
 
@@ -309,15 +386,21 @@ git commit -m "feat: align ACP protocol format with Gateway v3 requirements"
 3. ✅ 确认握手流程 (`connect.challenge` → `connect`)
 4. ✅ 确认协议版本要求 (v3)
 5. ✅ 确认 client 参数规范
-6. ✅ 更新 connector 代码到正确格式
+6. ✅ 确认 deviceId 派生规则 (SHA256 of publicKey)
+7. ✅ 深度调查设备认证机制
+8. ✅ 测试多种签名格式和认证方案
 
 ### 当前精确失败阶段
-**acp_device_pairing_required** - Gateway 要求设备配对认证
+**acp_device_signature_validation_failed** - 设备签名验证失败
 
-### 不是协议格式问题
-- 协议格式已完全正确
-- Gateway 正常接受并响应
-- 失败原因是安全认证，非协议不匹配
+### 失败原因
+- Gateway 签名验证算法未知
+- 无法访问 Gateway 源码确认签名数据格式
+- 已尝试所有常见签名数据格式均失败
 
-### 下一步
-需要实现设备配对或 token 认证机制。
+### 下一步方案
+1. **方案 A**: 联系 OpenClaw/Gateway 开发者获取签名算法文档
+2. **方案 B**: 反编译 Gateway 二进制文件查找签名验证逻辑
+3. **方案 C**: 抓包分析真实客户端的签名数据
+4. **方案 D**: 修改 Gateway 配置禁用设备认证（如果支持）
+5. **方案 E**: 使用已配对客户端的 WebSocket 连接进行代理转发
