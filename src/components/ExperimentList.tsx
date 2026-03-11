@@ -120,47 +120,54 @@ export default function ExperimentList({ experiments, onSelect, onCreate, runtim
           <button onClick={onCreate} style={{ backgroundColor: '#3b82f6', color: 'white', padding: '8px 18px', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 14 }}>+ 新建实验</button>
         </div>
 
-        {/* 概念说明卡 */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 32 }}>
+        {/* 欢迎说明 */}
+        <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', borderRadius: 12, padding: '32px 40px', marginBottom: 32, color: 'white' }}>
+          <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>欢迎使用 AgentLab 👋</div>
+          <div style={{ fontSize: 15, lineHeight: 1.7, opacity: 0.95 }}>
+            AgentLab 是 Agent 实验的编排与观察平台。你在这里创建实验、派发任务，<br/>
+            OpenClaw 负责实际执行，并在关键决策点回来找你确认下一步。
+          </div>
+        </div>
+
+        {/* 核心概念 */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, marginBottom: 32 }}>
           {[
-            { icon: '🦾', title: 'OpenClaw', desc: '你的 Agent 运行环境。可以是本地设备、云端节点，或模拟器。每个 OpenClaw 是一个独立的执行单元。', color: '#7c3aed' },
-            { icon: '🔌', title: 'Runtime', desc: '已连接到平台的 OpenClaw 实例。在线时可以接收实验任务，执行后返回结果。', color: '#0891b2' },
-            { icon: '🧪', title: 'Experiment', desc: '你给 Agent 下达的一次任务。描述目标、成功标准，然后派发给 Runtime 执行。', color: '#059669' },
+            { icon: '🦾', title: 'OpenClaw', desc: 'Agent 执行环境，可以是本地设备、云端节点或模拟器。', color: '#7c3aed' },
+            { icon: '🔌', title: 'Runtime', desc: '已连接的 OpenClaw 实例，在线时可接收任务并执行。', color: '#0891b2' },
+            { icon: '🧪', title: 'Experiment', desc: '你下达的任务，包含目标描述和成功标准。', color: '#059669' },
+            { icon: '👋', title: '人工决策', desc: '执行中遇到关键节点时，Agent 会暂停并请求你的决策。', color: '#dc2626' },
           ].map(item => (
-            <div key={item.title} style={{ background: 'white', border: `1px solid ${item.color}20`, borderTop: `3px solid ${item.color}`, borderRadius: 10, padding: '18px 20px' }}>
+            <div key={item.title} style={{ background: 'white', border: `1px solid ${item.color}20`, borderTop: `3px solid ${item.color}`, borderRadius: 10, padding: '16px 18px' }}>
               <div style={{ fontSize: 28, marginBottom: 8 }}>{item.icon}</div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: item.color, marginBottom: 6 }}>{item.title}</div>
-              <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.6 }}>{item.desc}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: item.color, marginBottom: 4 }}>{item.title}</div>
+              <div style={{ fontSize: 12, color: '#6b7280', lineHeight: 1.5 }}>{item.desc}</div>
             </div>
           ))}
         </div>
 
-        {/* 流程说明 */}
-        <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 10, padding: '20px 24px', marginBottom: 32 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 14 }}>工作流程</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 0, flexWrap: 'wrap' }}>
+        {/* 快速开始 */}
+        <div style={{ background: 'white', border: '2px solid #3b82f6', borderRadius: 10, padding: '24px 28px', marginBottom: 32 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#1e40af', marginBottom: 16 }}>🚀 快速开始</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {[
-              { step: '1', label: '连接 OpenClaw', sub: '点击右上角「连接 OpenClaw」' },
-              { step: '→', label: '', sub: '' },
-              { step: '2', label: '创建实验', sub: '描述任务目标和成功标准' },
-              { step: '→', label: '', sub: '' },
-              { step: '3', label: '派发执行', sub: '选择 Runtime，后端启动' },
-              { step: '→', label: '', sub: '' },
-              { step: '4', label: '观察结果', sub: '查看执行过程和摘要' },
-            ].map((item, i) => (
-              item.step === '→'
-                ? <div key={i} style={{ fontSize: 18, color: '#d1d5db', padding: '0 8px' }}>→</div>
-                : <div key={i} style={{ flex: 1, minWidth: 120, textAlign: 'center', padding: '10px 8px' }}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#3b82f6', color: 'white', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 6px' }}>{item.step}</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 2 }}>{item.label}</div>
-                    <div style={{ fontSize: 11, color: '#9ca3af' }}>{item.sub}</div>
-                  </div>
+              { num: '1', title: '连接 OpenClaw Runtime', desc: '点击右上角「连接 OpenClaw」，启动本地 Connector 或选择已有 Runtime', action: '连接' },
+              { num: '2', title: '创建第一个实验', desc: '描述你想让 Agent 完成的任务和成功标准', action: '创建' },
+              { num: '3', title: '派发并观察执行', desc: '实验会发送到 Runtime 执行，你可以实时查看进度', action: '执行' },
+              { num: '4', title: '关键节点做决策', desc: 'Agent 遇到不确定的情况会暂停，等待你的指示', action: '决策' },
+            ].map(item => (
+              <div key={item.num} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#3b82f6', color: 'white', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{item.num}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 2 }}>{item.title}</div>
+                  <div style={{ fontSize: 12, color: '#6b7280', lineHeight: 1.5 }}>{item.desc}</div>
+                </div>
+              </div>
             ))}
           </div>
         </div>
 
         <div style={{ textAlign: 'center' }}>
-          <button onClick={onCreate} style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', padding: '12px 32px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 15 }}>
+          <button onClick={onCreate} style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', padding: '14px 36px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 15, boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)' }}>
             🚀 创建第一个实验
           </button>
         </div>

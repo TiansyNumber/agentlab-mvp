@@ -20,7 +20,7 @@ function App() {
   const [backendExperimentId, setBackendExperimentId] = useState<string>('')
   const [experiments, setExperiments] = useState<Experiment[]>([])
   const [skills, setSkills] = useState<SkillDraft[]>([])
-  const [runnerType, setRunnerType] = useState<RunnerType>('mock')
+  const [runnerType] = useState<RunnerType>('mock')
   const [runtimes, setRuntimes] = useState<Array<{ id: string; mode: string; status: string }>>([])
   const runnerRef = useRef<IExperimentRunner | null>(null)
 
@@ -338,26 +338,23 @@ function App() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
             <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>AgentLab</h1>
-            <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>实验调度中心</div>
+            <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>Agent 实验编排与观察平台 · 连接 OpenClaw 执行 Runtime</div>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <label style={{ fontSize: 13, color: '#374151' }}>
-              Runner:
-              <select value={runnerType} onChange={(e) => setRunnerType(e.target.value as RunnerType)} style={{ marginLeft: 6, padding: '3px 6px', border: '1px solid #d1d5db', borderRadius: 4, fontSize: 13 }}>
-                <option value="mock">Mock</option>
-                <option value="anthropic">Anthropic</option>
-                <option value="openclaw-bridge">OpenClaw Bridge</option>
-              </select>
-            </label>
-            {selectedRuntimeId && (
-              <span style={{ padding: '3px 10px', borderRadius: 4, fontSize: 12, fontWeight: 600, background: selectedRuntimeMode === 'real' ? '#d1fae5' : '#f3f4f6', color: selectedRuntimeMode === 'real' ? '#065f46' : '#374151' }}>
+            {selectedRuntimeId ? (
+              <span style={{ padding: '6px 12px', borderRadius: 6, fontSize: 13, fontWeight: 600, background: selectedRuntimeMode === 'real' ? '#d1fae5' : '#f3f4f6', color: selectedRuntimeMode === 'real' ? '#065f46' : '#374151', border: selectedRuntimeMode === 'real' ? '1px solid #10b981' : '1px solid #d1d5db' }}>
                 {selectedRuntimeMode === 'real' ? '🟢' : '⚪'} {selectedRuntimeId.slice(0, 8)}
               </span>
+            ) : (
+              <span style={{ padding: '6px 12px', borderRadius: 6, fontSize: 13, fontWeight: 600, background: '#fef3c7', color: '#92400e', border: '1px solid #fbbf24' }}>
+                ⚠️ 未连接
+              </span>
             )}
-            <button onClick={() => setView('runtime')} style={{ padding: '5px 12px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer', background: 'white' }}>连接 OpenClaw</button>
-            <button onClick={() => setView('compare')} style={{ padding: '5px 12px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer', background: 'white' }}>Compare</button>
-            <button onClick={() => setView('openclaw-debug')} style={{ padding: '5px 12px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer', background: 'white' }}>调试</button>
-            <button onClick={() => setView('settings')} style={{ padding: '5px 12px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer', background: 'white' }}>设置</button>
+            <button onClick={() => setView('runtime')} style={{ padding: '6px 14px', fontSize: 13, border: '1px solid #3b82f6', borderRadius: 6, cursor: 'pointer', background: selectedRuntimeId ? 'white' : '#3b82f6', color: selectedRuntimeId ? '#3b82f6' : 'white', fontWeight: 600 }}>
+              {selectedRuntimeId ? '切换 Runtime' : '连接 OpenClaw'}
+            </button>
+            <button onClick={() => setView('openclaw-debug')} style={{ padding: '6px 14px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 6, cursor: 'pointer', background: 'white' }}>调试</button>
+            <button onClick={() => setView('settings')} style={{ padding: '6px 14px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 6, cursor: 'pointer', background: 'white' }}>设置</button>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 12 }}>

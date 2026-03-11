@@ -156,45 +156,60 @@ export default function RuntimeManager({ onBack, onSelectRuntime, recentExperime
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-      <button onClick={onBack} style={{ marginBottom: 16 }}>← 返回</button>
+      <button onClick={onBack} style={{ marginBottom: 16, padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: 6, background: 'white', cursor: 'pointer' }}>← 返回</button>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>连接 OpenClaw</h2>
-          <div style={{ fontSize: 13, color: '#6b7280', marginTop: 2 }}>选择一个在线的 Runtime 来执行实验</div>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>连接 OpenClaw Runtime</h2>
+          <div style={{ fontSize: 13, color: '#6b7280', marginTop: 6, lineHeight: 1.6 }}>
+            OpenClaw 是你的 Agent 执行环境。AgentLab 负责编排实验，OpenClaw 负责实际执行。<br/>
+            连接后，你可以派发实验任务，观察执行过程，并在关键节点做出决策。
+          </div>
         </div>
         <button onClick={loadRuntimes} disabled={loading} style={{ padding: '6px 14px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 6, cursor: 'pointer', background: 'white' }}>
           {loading ? '加载中…' : '🔄 刷新'}
         </button>
       </div>
 
-      {/* 启动说明 */}
-      <div style={{ marginBottom: 24, border: '1px solid #a7f3d0', padding: '16px 20px', borderRadius: 10, background: '#ecfdf5', display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-        <div style={{ fontSize: 24, flexShrink: 0 }}>🔗</div>
-        <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#065f46', marginBottom: 4 }}>推荐：本地启动 Connector 自动连接</div>
-          <div style={{ fontSize: 13, color: '#047857', marginBottom: 10 }}>在本地运行 connector，自动注册到平台，无需手工配置。</div>
-          <div style={{ background: '#1f2937', color: '#e5e7eb', padding: '8px 14px', borderRadius: 6, fontFamily: 'monospace', fontSize: 13, display: 'inline-block' }}>
-            cd connector && npm start
+      {/* 推荐方式 */}
+      <div style={{ marginBottom: 24, border: '2px solid #10b981', padding: '20px 24px', borderRadius: 10, background: '#ecfdf5' }}>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+          <div style={{ fontSize: 32, flexShrink: 0 }}>🚀</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#065f46', marginBottom: 6 }}>推荐方式：本地启动 Connector</div>
+            <div style={{ fontSize: 13, color: '#047857', marginBottom: 12, lineHeight: 1.6 }}>
+              Connector 会自动连接到 AgentLab 平台，注册为可用的 Runtime。<br/>
+              无需手动配置 device_id 或 gateway_url，开箱即用。
+            </div>
+            <div style={{ background: '#1f2937', color: '#e5e7eb', padding: '10px 16px', borderRadius: 6, fontFamily: 'monospace', fontSize: 13, marginBottom: 10 }}>
+              cd connector && npm start
+            </div>
+            <div style={{ fontSize: 12, color: '#059669' }}>
+              💡 启动后，刷新此页面即可看到新注册的 Runtime
+            </div>
           </div>
         </div>
       </div>
 
       {/* 可用 Runtime */}
-      <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>
+      <div style={{ marginBottom: 12 }}>
+        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
           可用 Runtime
           <span style={{ marginLeft: 8, fontSize: 13, fontWeight: 400, color: '#6b7280' }}>
             {available.length} 个（{available.filter(r => !r.is_busy).length} 空闲）
           </span>
         </h3>
+        <div style={{ fontSize: 12, color: '#6b7280' }}>选择一个空闲的 Runtime 来执行你的实验</div>
       </div>
 
       {available.length === 0 ? (
-        <div style={{ padding: '28px', textAlign: 'center', color: '#6b7280', background: '#f9fafb', borderRadius: 10, border: '1px dashed #d1d5db', marginBottom: 24 }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>🔌</div>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>暂无可用 Runtime</div>
-          <div style={{ fontSize: 13 }}>请运行上方命令启动 connector，或手工注册</div>
+        <div style={{ padding: '40px 28px', textAlign: 'center', color: '#6b7280', background: '#f9fafb', borderRadius: 10, border: '2px dashed #d1d5db', marginBottom: 24 }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🔌</div>
+          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6, color: '#374151' }}>暂无可用 Runtime</div>
+          <div style={{ fontSize: 13, marginBottom: 16 }}>请先启动 Connector，或使用下方高级选项手动注册</div>
+          <button onClick={loadRuntimes} style={{ padding: '8px 20px', fontSize: 13, background: '#3b82f6', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>
+            🔄 刷新列表
+          </button>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14, marginBottom: 24 }}>
@@ -216,38 +231,41 @@ export default function RuntimeManager({ onBack, onSelectRuntime, recentExperime
       <div style={{ paddingTop: 20, borderTop: '1px solid #e5e7eb' }}>
         <button
           onClick={() => setShowAdvanced(!showAdvanced)}
-          style={{ padding: '5px 12px', fontSize: 13, color: '#6b7280', background: 'transparent', border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer' }}
+          style={{ padding: '6px 14px', fontSize: 13, color: '#6b7280', background: 'transparent', border: '1px solid #d1d5db', borderRadius: 6, cursor: 'pointer' }}
         >
-          {showAdvanced ? '▼' : '▶'} 高级：手工注册 Runtime
+          {showAdvanced ? '▼' : '▶'} 高级选项：手动注册 Runtime
         </button>
         {showAdvanced && (
           <div style={{ marginTop: 12, border: '1px solid #e5e7eb', padding: 16, borderRadius: 8, background: '#f9fafb' }}>
+            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 12, lineHeight: 1.5 }}>
+              ⚠️ 仅在特殊场景使用（如远程设备、自定义网关）。推荐使用 Connector 自动连接。
+            </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <span style={{ fontSize: 12, fontWeight: 600 }}>Owner</span>
-                <input value={owner} onChange={e => setOwner(e.target.value)} placeholder="Owner" style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: 4 }} />
+                <input value={owner} onChange={e => setOwner(e.target.value)} placeholder="default-user" style={{ padding: '5px 10px', border: '1px solid #d1d5db', borderRadius: 4, fontSize: 13 }} />
               </label>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <span style={{ fontSize: 12, fontWeight: 600 }}>Mode</span>
-                <select value={mode} onChange={e => setMode(e.target.value as any)} style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: 4 }}>
-                  <option value="demo">Demo</option>
-                  <option value="simulated">Simulated</option>
-                  <option value="real">Real</option>
+                <select value={mode} onChange={e => setMode(e.target.value as any)} style={{ padding: '5px 10px', border: '1px solid #d1d5db', borderRadius: 4, fontSize: 13 }}>
+                  <option value="demo">Demo（演示）</option>
+                  <option value="simulated">Simulated（模拟）</option>
+                  <option value="real">Real（真实设备）</option>
                 </select>
               </label>
               {mode === 'real' && (
                 <>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <span style={{ fontSize: 12, fontWeight: 600 }}>Device ID</span>
-                    <input value={deviceId} onChange={e => setDeviceId(e.target.value)} placeholder="device-xxx" style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: 4, width: 150 }} />
+                    <input value={deviceId} onChange={e => setDeviceId(e.target.value)} placeholder="device-xxx" style={{ padding: '5px 10px', border: '1px solid #d1d5db', borderRadius: 4, width: 150, fontSize: 13 }} />
                   </label>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <span style={{ fontSize: 12, fontWeight: 600 }}>Gateway URL</span>
-                    <input value={gatewayUrl} onChange={e => setGatewayUrl(e.target.value)} placeholder="https://gateway.openclaw.ai" style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: 4, width: 250 }} />
+                    <input value={gatewayUrl} onChange={e => setGatewayUrl(e.target.value)} placeholder="https://gateway.openclaw.ai" style={{ padding: '5px 10px', border: '1px solid #d1d5db', borderRadius: 4, width: 250, fontSize: 13 }} />
                   </label>
                 </>
               )}
-              <button onClick={handleRegister} disabled={loading} style={{ padding: '5px 16px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}>注册</button>
+              <button onClick={handleRegister} disabled={loading} style={{ padding: '6px 18px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>注册</button>
             </div>
           </div>
         )}
