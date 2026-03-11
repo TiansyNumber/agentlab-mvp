@@ -1,4 +1,4 @@
-export type ExperimentStatus = 'draft' | 'running' | 'paused' | 'success' | 'failed'
+export type ExperimentStatus = 'draft' | 'running' | 'paused' | 'success' | 'failed' | 'needs_human'
 
 export type ExperimentPhase = 'created' | 'connecting' | 'connected' | 'authenticating' | 'authenticated' | 'command_sent' | 'action_received' | 'execution_running' | 'execution_completed' | 'execution_failed' | 'disconnected'
 
@@ -43,7 +43,7 @@ export interface Experiment {
 export interface Event {
   id: string
   timestamp: string
-  type: 'start' | 'action' | 'intervention' | 'complete' | 'pause' | 'resume' | 'stop' | 'success' | 'failed'
+  type: 'start' | 'action' | 'intervention' | 'complete' | 'pause' | 'resume' | 'stop' | 'success' | 'failed' | 'needs_human' | 'human_continue' | 'human_retry' | 'human_stop'
   message: string
 }
 

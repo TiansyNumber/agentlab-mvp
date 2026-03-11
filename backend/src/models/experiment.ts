@@ -1,6 +1,6 @@
 // Experiment data model for AgentLab V2 platform layer
 
-export type ExperimentStatus = 'pending' | 'running' | 'paused' | 'completed' | 'failed' | 'stopped';
+export type ExperimentStatus = 'pending' | 'running' | 'paused' | 'completed' | 'failed' | 'stopped' | 'needs_human';
 
 export type ExperimentPhase =
   | 'created'

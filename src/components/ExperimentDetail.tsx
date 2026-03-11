@@ -28,15 +28,15 @@ const phaseLabels: Record<ExperimentPhase, string> = {
 }
 
 export default function ExperimentDetail({ experiment, onBack, onResume, onPause, onStop, onMarkSuccess, onMarkFailed, onGenerateSkill, onStartWithBackend, onRetry }: Props) {
-  const canResume = experiment.status === 'paused'
+  const canResume = experiment.status === 'paused' || experiment.status === 'needs_human'
   const canPause = experiment.status === 'running'
-  const canStop = experiment.status === 'running' || experiment.status === 'paused'
-  const canMark = experiment.status === 'running' || experiment.status === 'paused'
+  const canStop = experiment.status === 'running' || experiment.status === 'paused' || experiment.status === 'needs_human'
+  const canMark = experiment.status === 'running' || experiment.status === 'paused' || experiment.status === 'needs_human'
   const canGenerateSkill = experiment.status === 'success'
-  const canRetry = (experiment.status === 'failed' || experiment.status === 'success') && onRetry
+  const canRetry = (experiment.status === 'failed' || experiment.status === 'success' || experiment.status === 'needs_human') && onRetry
 
   const currentStep = experiment.execution_steps?.find(s => s.status === 'running')
-  const needsIntervention = experiment.status === 'paused' || (experiment.status === 'running' && canMark)
+  const needsIntervention = experiment.status === 'paused' || experiment.status === 'needs_human' || (experiment.status === 'running' && canMark)
 
   return (
     <div>
@@ -46,6 +46,7 @@ export default function ExperimentDetail({ experiment, onBack, onResume, onPause
       <div style={{
         background: experiment.status === 'running' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' :
                     experiment.status === 'paused' ? 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' :
+                    experiment.status === 'needs_human' ? 'linear-gradient(135deg, #fb923c 0%, #f97316 100%)' :
                     experiment.status === 'success' ? 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' :
                     experiment.status === 'failed' ? 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' :
                     'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
@@ -70,6 +71,7 @@ export default function ExperimentDetail({ experiment, onBack, onResume, onPause
           }}>
             {experiment.status === 'running' ? '🔬 实验中' :
              experiment.status === 'paused' ? '⏸️ 已暂停' :
+             experiment.status === 'needs_human' ? '👋 需要决策' :
              experiment.status === 'success' ? '✅ 成功' :
              experiment.status === 'failed' ? '❌ 失败' : '📝 草稿'}
           </div>
@@ -106,7 +108,9 @@ export default function ExperimentDetail({ experiment, onBack, onResume, onPause
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '2px' }}>需要你的决策</div>
               <div style={{ fontSize: '12px', opacity: 0.7 }}>
-                {experiment.status === 'paused' ? '实验已暂停，等待你继续' : '可以标记实验结果或继续观察'}
+                {experiment.status === 'paused' ? '实验已暂停，等待你继续' :
+                 experiment.status === 'needs_human' ? 'Agent 遇到需要人工决策的情况' :
+                 '可以标记实验结果或继续观察'}
               </div>
             </div>
           </div>
@@ -262,12 +266,14 @@ export default function ExperimentDetail({ experiment, onBack, onResume, onPause
           const isActionEvent = ['action', 'agent_thinking', 'agent_action', 'action_received', 'execution_running'].includes(event.type);
           const isErrorEvent = ['failed', 'start_failed', 'experiment_failed', 'experiment_timeout', 'auth_failed', 'gateway_connect_failed'].includes(event.type);
           const isCompleteEvent = ['success', 'complete', 'experiment_completed', 'execution_completed'].includes(event.type);
+          const isHumanEvent = ['needs_human', 'human_continue', 'human_retry', 'human_stop', 'intervention'].includes(event.type);
 
           let config = { bg: '#f9fafb', border: '#e5e7eb', icon: '●', label: 'INFO', title: '信息' };
           if (isPhaseEvent) config = { bg: '#eff6ff', border: '#3b82f6', icon: '▶', label: 'PHASE', title: '阶段' };
           else if (isActionEvent) config = { bg: '#fffbeb', border: '#f59e0b', icon: '⚡', label: 'ACTION', title: '动作' };
           else if (isErrorEvent) config = { bg: '#fef2f2', border: '#ef4444', icon: '✖', label: 'ERROR', title: '错误' };
           else if (isCompleteEvent) config = { bg: '#f0fdf4', border: '#10b981', icon: '✓', label: 'COMPLETE', title: '完成' };
+          else if (isHumanEvent) config = { bg: '#fef3c7', border: '#f59e0b', icon: '👋', label: 'HUMAN', title: '人工介入' };
 
           return (
             <div key={event.id} style={{

@@ -13,6 +13,7 @@ const statusConfig: Record<string, { label: string; color: string; bg: string; d
   paused:  { label: '已暂停', color: '#c2410c', bg: '#ffedd5', dot: '⏸' },
   success: { label: '已完成', color: '#065f46', bg: '#d1fae5', dot: '✓' },
   failed:  { label: '失败',   color: '#991b1b', bg: '#fee2e2', dot: '✖' },
+  needs_human: { label: '需要决策', color: '#7c2d12', bg: '#fed7aa', dot: '👋' },
 }
 
 function getPhaseLabel(phase?: string) {
@@ -28,7 +29,7 @@ export default function ExperimentList({ experiments, onSelect, onCreate, runtim
   const getRuntimeInfo = (runtimeId?: string) => runtimes.find(r => r.id === runtimeId)
 
   const pending   = experiments.filter(e => e.status === 'draft')
-  const running   = experiments.filter(e => e.status === 'running' || e.status === 'paused')
+  const running   = experiments.filter(e => e.status === 'running' || e.status === 'paused' || e.status === 'needs_human')
   const completed = experiments.filter(e => e.status === 'success' || e.status === 'failed')
 
   const ExperimentCard = ({ exp }: { exp: Experiment }) => {
