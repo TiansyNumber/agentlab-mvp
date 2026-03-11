@@ -35,6 +35,8 @@ export default function RuntimeManager({ onBack, onSelectRuntime, recentExperime
   const [mode, setMode] = useState<'demo' | 'simulated' | 'real'>('demo');
   const [deviceId, setDeviceId] = useState('');
   const [gatewayUrl, setGatewayUrl] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [showTroubleshooting, setShowTroubleshooting] = useState(false);
 
   const loadRuntimes = async () => {
     setLoading(true);
@@ -67,6 +69,13 @@ export default function RuntimeManager({ onBack, onSelectRuntime, recentExperime
     } finally {
       setLoading(false);
     }
+  };
+
+  const copyCommands = () => {
+    const commands = 'cd connector\nnpm install\nnpm start';
+    navigator.clipboard.writeText(commands);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   useEffect(() => { loadRuntimes(); }, []);
@@ -171,23 +180,127 @@ export default function RuntimeManager({ onBack, onSelectRuntime, recentExperime
         </button>
       </div>
 
-      {/* 推荐方式 */}
-      <div style={{ marginBottom: 24, border: '2px solid #10b981', padding: '20px 24px', borderRadius: 10, background: '#ecfdf5' }}>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-          <div style={{ fontSize: 32, flexShrink: 0 }}>🚀</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#065f46', marginBottom: 6 }}>推荐方式：本地启动 Connector</div>
-            <div style={{ fontSize: 13, color: '#047857', marginBottom: 12, lineHeight: 1.6 }}>
-              Connector 会自动连接到 AgentLab 平台，注册为可用的 Runtime。<br/>
-              无需手动配置 device_id 或 gateway_url，开箱即用。
-            </div>
-            <div style={{ background: '#1f2937', color: '#e5e7eb', padding: '10px 16px', borderRadius: 6, fontFamily: 'monospace', fontSize: 13, marginBottom: 10 }}>
-              cd connector && npm start
-            </div>
-            <div style={{ fontSize: 12, color: '#059669' }}>
-              💡 启动后，刷新此页面即可看到新注册的 Runtime
+      {/* Step-by-step 接入向导 */}
+      <div style={{ marginBottom: 24, border: '2px solid #10b981', borderRadius: 10, background: '#ecfdf5', overflow: 'hidden' }}>
+        <div style={{ padding: '16px 24px', background: '#059669', color: 'white', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 28 }}>🚀</span>
+          <div>
+            <div style={{ fontSize: 17, fontWeight: 700 }}>OpenClaw 接入向导</div>
+            <div style={{ fontSize: 12, opacity: 0.9 }}>跟随步骤完成接入，5 分钟内开始你的第一个实验</div>
+          </div>
+        </div>
+
+        <div style={{ padding: '20px 24px' }}>
+          {/* Step 0 */}
+          <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #d1fae5' }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#065f46', marginBottom: 6 }}>📋 Step 0: 准备工作</div>
+            <div style={{ fontSize: 13, color: '#047857', lineHeight: 1.6 }}>
+              • 确保 OpenClaw Gateway 已启动（默认监听 <code style={{ background: '#d1fae5', padding: '2px 6px', borderRadius: 3, fontFamily: 'monospace' }}>ws://localhost:18889</code>）<br/>
+              • 确保你在 AgentLab 项目根目录
             </div>
           </div>
+
+          {/* Step 1-3 */}
+          <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #d1fae5' }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#065f46', marginBottom: 6 }}>⚙️ Step 1-3: 启动 Connector</div>
+            <div style={{ fontSize: 13, color: '#047857', marginBottom: 10 }}>在终端执行以下命令：</div>
+            <div style={{ position: 'relative' }}>
+              <div style={{ background: '#1f2937', color: '#e5e7eb', padding: '12px 16px', borderRadius: 6, fontFamily: 'monospace', fontSize: 13, lineHeight: 1.8 }}>
+                cd connector<br/>
+                npm install<br/>
+                npm start
+              </div>
+              <button
+                onClick={copyCommands}
+                style={{
+                  position: 'absolute',
+                  top: 8,
+                  right: 8,
+                  padding: '4px 10px',
+                  fontSize: 12,
+                  background: copied ? '#10b981' : '#374151',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                {copied ? '✓ 已复制' : '📋 复制'}
+              </button>
+            </div>
+            <div style={{ fontSize: 12, color: '#059669', marginTop: 8 }}>
+              💡 Connector 会自动连接到 AgentLab，无需手动配置
+            </div>
+          </div>
+
+          {/* Step 4 */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#065f46', marginBottom: 8 }}>🔄 Step 4: 刷新并查看 Runtime</div>
+            <button
+              onClick={loadRuntimes}
+              disabled={loading}
+              style={{
+                padding: '8px 20px',
+                fontSize: 14,
+                fontWeight: 600,
+                background: '#10b981',
+                color: 'white',
+                border: 'none',
+                borderRadius: 6,
+                cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.6 : 1
+              }}
+            >
+              {loading ? '刷新中…' : '🔄 刷新 Runtime 列表'}
+            </button>
+            <div style={{ fontSize: 12, color: '#047857', marginTop: 6 }}>
+              启动成功后，点击刷新即可看到新注册的 Runtime 出现在下方列表
+            </div>
+          </div>
+
+          {/* 排障 */}
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #d1fae5' }}>
+            <button
+              onClick={() => setShowTroubleshooting(!showTroubleshooting)}
+              style={{
+                padding: '6px 12px',
+                fontSize: 13,
+                color: '#047857',
+                background: 'transparent',
+                border: '1px solid #10b981',
+                borderRadius: 6,
+                cursor: 'pointer',
+                fontWeight: 600
+              }}
+            >
+              {showTroubleshooting ? '▼' : '▶'} 看不到 Runtime？点击查看排障
+            </button>
+            {showTroubleshooting && (
+              <div style={{ marginTop: 12, padding: 12, background: '#d1fae5', borderRadius: 6, fontSize: 12, color: '#065f46', lineHeight: 1.7 }}>
+                <strong>常见问题：</strong><br/>
+                • <strong>Gateway 未启动</strong>：确认 OpenClaw Gateway 在 18889 端口运行<br/>
+                • <strong>Connector 未启动</strong>：检查终端是否有报错，确认 npm start 成功<br/>
+                • <strong>Backend 不可达</strong>：确认 AgentLab backend 服务正常（默认 localhost:3001）<br/>
+                • <strong>端口冲突</strong>：检查 18889 (Gateway) 和 3001 (Backend) 端口是否被占用<br/>
+                • <strong>网络问题</strong>：确认 WebSocket 连接未被防火墙拦截
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 接上后怎么用 */}
+      <div style={{ marginBottom: 24, border: '1px solid #3b82f6', borderRadius: 10, background: '#eff6ff', padding: '16px 20px' }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: '#1e40af', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span>✨</span> 接入成功后，你可以这样使用
+        </div>
+        <div style={{ fontSize: 13, color: '#1e40af', lineHeight: 1.8 }}>
+          <strong>1.</strong> 在下方列表选择一个空闲的 Runtime<br/>
+          <strong>2.</strong> 创建实验，配置任务目标和参数<br/>
+          <strong>3.</strong> 观察实验执行过程（实时日志、截图、状态）<br/>
+          <strong>4.</strong> 当实验进入 <code style={{ background: '#dbeafe', padding: '2px 6px', borderRadius: 3, fontFamily: 'monospace' }}>needs_human</code> 状态时，查看 Agent 的请求并做出决策<br/>
+          <strong>5.</strong> 实验完成后，查看结果和完整执行记录
         </div>
       </div>
 
