@@ -47,8 +47,8 @@ export class AgentLabConnector {
 
   private loadDeviceId() {
     const candidates = [
-      join(homedir(), '.openclaw', 'identity', 'device.json'),
       join(homedir(), '.openclaw-second', 'identity', 'device.json'),
+      join(homedir(), '.openclaw', 'identity', 'device.json'),
     ];
     for (const identityPath of candidates) {
       if (existsSync(identityPath)) {
@@ -392,38 +392,53 @@ export class AgentLabConnector {
               addEvent('acp_challenge_received', { nonce: msg.payload.nonce });
               const nonce = msg.payload.nonce;
               const signedAt = Date.now();
-              const clientId = 'node-host';
+              const clientId = 'gateway-client';
               const clientMode = 'backend';
               const role = 'operator';
               const scopes = 'operator.admin';
+              const platform = 'darwin';
+              const deviceFamily = '';
 
-              const payload = `v2|${this.config.deviceId}|${clientId}|${clientMode}|${role}|${scopes}|${signedAt}||${nonce}`;
-              const privateKey = crypto.createPrivateKey(this.config.privateKeyPem!);
-              const signature = crypto.sign(null, Buffer.from(payload, 'utf8'), privateKey).toString('base64url');
+              // Build connect params with auth token
+              let connectParams: any = {
+                minProtocol: 3,
+                maxProtocol: 3,
+                auth: effectiveToken ? { token: effectiveToken } : undefined,
+                client: {
+                  id: clientId,
+                  version: '0.1.0',
+                  platform: platform,
+                  mode: clientMode
+                },
+                role: role,
+                scopes: [scopes]
+              };
 
-              const connectReq = {
-                type: 'req',
-                id: 'connect-1',
-                method: 'connect',
-                params: {
-                  minProtocol: 3,
-                  maxProtocol: 3,
-                  client: {
-                    id: clientId,
-                    version: '0.1.0',
-                    platform: 'darwin',
-                    mode: clientMode
-                  },
-                  device: {
+              try {
+                if (this.config.privateKeyPem && this.config.privateKeyPem !== 'stub-key') {
+                  // v3 signature format: v3|deviceId|clientId|clientMode|role|scopes|signedAtMs|token|nonce|platform|deviceFamily
+                  const tokenForSig = effectiveToken ?? '';
+                  const payload = ['v3', this.config.deviceId, clientId, clientMode, role, scopes, String(signedAt), tokenForSig, nonce, platform, deviceFamily].join('|');
+                  const privateKey = crypto.createPrivateKey(this.config.privateKeyPem!);
+                  const signature = crypto.sign(null, Buffer.from(payload, 'utf8'), privateKey).toString('base64url');
+                  connectParams.device = {
                     id: this.config.deviceId,
                     publicKey: this.config.publicKey,
                     signature: signature,
                     signedAt: signedAt,
                     nonce: nonce
-                  },
-                  role: role,
-                  scopes: [scopes]
+                  };
                 }
+              } catch (e) {
+                // Key error - proceed with token-only auth
+                addEvent('acp_key_error', { error: (e as Error).message });
+              }
+
+              const connectReq = {
+                type: 'req',
+                id: 'connect-1',
+                method: 'connect',
+                params: connectParams
               };
               ws.send(JSON.stringify(connectReq));
               addEvent('acp_connect_sent', {});
