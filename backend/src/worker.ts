@@ -106,7 +106,7 @@ export default {
         const body = await request.json();
         const runtime = await getRuntime(body.runtime_id);
         if (!runtime) return Response.json({ error: 'Runtime not found' }, { status: 404, headers: corsHeaders });
-        const exp = await startExperiment(body.runtime_id, body.owner, body.task, runtime);
+        const exp = await startExperiment(body.runtime_id, body.owner, body.task, runtime, body.gateway_token);
         return Response.json({
           id: exp.experiment_id,
           runtime_id: exp.runtime_id,

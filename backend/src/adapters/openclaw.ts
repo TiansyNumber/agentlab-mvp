@@ -10,6 +10,7 @@ export interface OpenClawConfig {
   gateway_url?: string;
   device_id?: string;
   private_key?: string; // Real device private key (NOT exposed to browser)
+  gateway_token?: string;
 }
 
 export class OpenClawAdapter {
@@ -131,6 +132,7 @@ export class OpenClawAdapter {
           device_id: this.config.device_id,
           task,
           timestamp: Date.now(),
+          gateway_token: this.config.gateway_token,
         }),
       });
 

@@ -41,7 +41,8 @@ export async function startExperiment(
   runtime_id: string,
   owner: string,
   task: string,
-  runtime: Runtime
+  runtime: Runtime,
+  gateway_token?: string
 ): Promise<Experiment> {
   if (!task?.trim()) throw new Error('task required');
 
@@ -124,7 +125,7 @@ export async function startExperiment(
   };
 
   try {
-    await startExperimentWithRuntime(experiment, runtime, eventHandler);
+    await startExperimentWithRuntime(experiment, runtime, eventHandler, gateway_token);
   } catch (err) {
     experiment.status = 'failed';
     const errorMsg = (err as Error).message;

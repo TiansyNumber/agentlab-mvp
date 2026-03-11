@@ -290,7 +290,7 @@ export class AgentLabConnector {
               console.log(`   Task: ${payload.task?.substring(0, 80)}`);
 
               // Dispatch to OpenClaw gateway async (only once)
-              this.dispatchToOpenClaw(experimentId, payload.task).catch(err => {
+              this.dispatchToOpenClaw(experimentId, payload.task, payload.gateway_token).catch(err => {
                 console.error(`❌ Dispatch error: ${err.message}`);
               });
 
@@ -339,7 +339,7 @@ export class AgentLabConnector {
   }
 
   // Dispatch experiment task to OpenClaw gateway via WebSocket
-  private async dispatchToOpenClaw(experimentId: string, task: string): Promise<void> {
+  private async dispatchToOpenClaw(experimentId: string, task: string, gatewayToken?: string): Promise<void> {
     const exp = this.experiments.get(experimentId);
     if (!exp) return;
     if (exp.dispatched) return;
@@ -352,8 +352,9 @@ export class AgentLabConnector {
     };
 
     const baseWsUrl = this.config.gateway.replace(/^http/, 'ws');
-    const gatewayWsUrl = this.config.gatewayToken
-      ? `${baseWsUrl}?token=${encodeURIComponent(this.config.gatewayToken)}`
+    const effectiveToken = gatewayToken || this.config.gatewayToken;
+    const gatewayWsUrl = effectiveToken
+      ? `${baseWsUrl}?token=${encodeURIComponent(effectiveToken)}`
       : baseWsUrl;
     addEvent('acp_connecting', { url: baseWsUrl });
 

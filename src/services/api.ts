@@ -22,6 +22,7 @@ export interface ExperimentStartRequest {
   runtime_id: string;
   owner: string;
   task: string;
+  gateway_token?: string;
 }
 
 export interface ExperimentResponse {

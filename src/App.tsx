@@ -70,7 +70,8 @@ function App() {
       const result = await api.startExperiment({
         runtime_id: selectedRuntimeId,
         owner: 'default-user',
-        task: exp.description
+        task: exp.description,
+        gateway_token: localStorage.getItem('openclaw_gateway_token') || undefined,
       });
       setBackendExperimentId(result.id);
       addEvent(expId, createEvent('action', `后端实验已启动: ${result.id}`));

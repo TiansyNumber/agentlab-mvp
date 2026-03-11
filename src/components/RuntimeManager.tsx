@@ -195,7 +195,7 @@ export default function RuntimeManager({ onBack, onSelectRuntime, recentExperime
           <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #d1fae5' }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#065f46', marginBottom: 6 }}>📋 Step 0: 准备工作</div>
             <div style={{ fontSize: 13, color: '#047857', lineHeight: 1.6 }}>
-              • 确保 OpenClaw Gateway 已启动（默认监听 <code style={{ background: '#d1fae5', padding: '2px 6px', borderRadius: 3, fontFamily: 'monospace' }}>ws://localhost:18889</code>）<br/>
+              • 确保 OpenClaw Gateway 已启动（默认监听 <code style={{ background: '#d1fae5', padding: '2px 6px', borderRadius: 3, fontFamily: 'monospace' }}>http://localhost:19889</code>）<br/>
               • 确保你在 AgentLab 项目根目录
             </div>
           </div>
@@ -205,7 +205,7 @@ export default function RuntimeManager({ onBack, onSelectRuntime, recentExperime
             <div style={{ fontSize: 14, fontWeight: 700, color: '#065f46', marginBottom: 6 }}>⚙️ Step 1-3: 启动 CLI Connector（推荐）</div>
             <div style={{ fontSize: 13, color: '#047857', marginBottom: 10, lineHeight: 1.7 }}>
               <strong>CLI Connector</strong> 是 AgentLab 提供的本地接入工具，它会：<br/>
-              • 自动连接你本地的 OpenClaw Gateway（ws://localhost:18889）<br/>
+              • 自动连接你本地的 OpenClaw Gateway（http://localhost:19889）<br/>
               • 向 AgentLab 平台注册你的 Runtime<br/>
               • 保持在线心跳，让平台知道你的设备可用
             </div>

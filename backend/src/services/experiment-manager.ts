@@ -9,7 +9,8 @@ const activeAdapters = new Map<string, OpenClawAdapter>();
 export async function startExperimentWithRuntime(
   experiment: Experiment,
   runtime: Runtime,
-  onEvent: (event: ExperimentEvent) => void
+  onEvent: (event: ExperimentEvent) => void,
+  gateway_token?: string
 ): Promise<void> {
   markRuntimeBusy(runtime, experiment.experiment_id);
 
@@ -19,6 +20,7 @@ export async function startExperimentWithRuntime(
       gateway_url: runtime.runtime_mode === 'real' ? runtime.gateway_url : runtime.endpoint,
       device_id: runtime.runtime_mode === 'real' ? runtime.device_id : `runtime-${runtime.runtime_id}`,
       private_key: 'stub-key',
+      gateway_token,
     };
 
     const adapter = new OpenClawAdapter(config);
