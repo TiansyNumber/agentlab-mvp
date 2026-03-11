@@ -1,4 +1,4 @@
-const API_BASE = 'https://agentlab-backend.supertiansy.workers.dev';
+const API_BASE = '';
 
 export interface Runtime {
   id: string;
