@@ -202,7 +202,13 @@ export default function RuntimeManager({ onBack, onSelectRuntime, recentExperime
 
           {/* Step 1-3 */}
           <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #d1fae5' }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#065f46', marginBottom: 6 }}>⚙️ Step 1-3: 启动 Connector</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#065f46', marginBottom: 6 }}>⚙️ Step 1-3: 启动 CLI Connector（推荐）</div>
+            <div style={{ fontSize: 13, color: '#047857', marginBottom: 10, lineHeight: 1.7 }}>
+              <strong>CLI Connector</strong> 是 AgentLab 提供的本地接入工具，它会：<br/>
+              • 自动连接你本地的 OpenClaw Gateway（ws://localhost:18889）<br/>
+              • 向 AgentLab 平台注册你的 Runtime<br/>
+              • 保持在线心跳，让平台知道你的设备可用
+            </div>
             <div style={{ fontSize: 13, color: '#047857', marginBottom: 10 }}>在终端执行以下命令：</div>
             <div style={{ position: 'relative' }}>
               <div style={{ background: '#1f2937', color: '#e5e7eb', padding: '12px 16px', borderRadius: 6, fontFamily: 'monospace', fontSize: 13, lineHeight: 1.8 }}>
@@ -229,8 +235,11 @@ export default function RuntimeManager({ onBack, onSelectRuntime, recentExperime
                 {copied ? '✓ 已复制' : '📋 复制'}
               </button>
             </div>
-            <div style={{ fontSize: 12, color: '#059669', marginTop: 8 }}>
-              💡 Connector 会自动连接到 AgentLab，无需手动配置
+            <div style={{ fontSize: 12, color: '#059669', marginTop: 8, lineHeight: 1.6 }}>
+              ✅ <strong>成功后你会看到：</strong><br/>
+              • 终端显示 "Connected to AgentLab" 和心跳日志<br/>
+              • 刷新页面后，下方列表出现新的 Runtime<br/>
+              • Runtime 状态显示为 <strong style={{ color: '#10b981' }}>● 在线</strong>，即可创建实验
             </div>
           </div>
 
