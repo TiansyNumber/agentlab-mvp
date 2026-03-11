@@ -46,15 +46,22 @@ export class AgentLabConnector {
   }
 
   private loadDeviceId() {
-    const identityPath = join(homedir(), '.openclaw', 'identity', 'device.json');
-    if (existsSync(identityPath)) {
-      try {
-        const identity = JSON.parse(readFileSync(identityPath, 'utf-8'));
-        this.config.deviceId = identity.deviceId;
-        this.config.publicKey = this.derivePublicKey(identity.publicKeyPem);
-        this.config.privateKeyPem = identity.privateKeyPem;
-        return;
-      } catch {}
+    const candidates = [
+      join(homedir(), '.openclaw', 'identity', 'device.json'),
+      join(homedir(), '.openclaw-second', 'identity', 'device.json'),
+    ];
+    for (const identityPath of candidates) {
+      if (existsSync(identityPath)) {
+        try {
+          const identity = JSON.parse(readFileSync(identityPath, 'utf-8'));
+          this.config.deviceId = identity.deviceId;
+          this.config.publicKey = this.derivePublicKey(identity.publicKeyPem);
+          this.config.privateKeyPem = identity.privateKeyPem;
+          console.log(`🔑 Device identity loaded from: ${identityPath}`);
+          console.log(`   Device ID: ${identity.deviceId}`);
+          return;
+        } catch {}
+      }
     }
     throw new Error('Device identity not found. Please ensure OpenClaw is installed.');
   }
@@ -288,6 +295,7 @@ export class AgentLabConnector {
 
               console.log(`\n📥 Experiment received: ${experimentId}`);
               console.log(`   Task: ${payload.task?.substring(0, 80)}`);
+              console.log(`   gateway_token: ${payload.gateway_token ? payload.gateway_token.substring(0, 8) + '...' : '❌ MISSING/EMPTY'}`);
 
               // Dispatch to OpenClaw gateway async (only once)
               this.dispatchToOpenClaw(experimentId, payload.task, payload.gateway_token).catch(err => {
