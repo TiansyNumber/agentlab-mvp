@@ -54,7 +54,8 @@ function App() {
       runtime_mode: selectedRuntimeMode || undefined
     }
     setExperiments([...experiments, newExp])
-    setView('list')
+    setSelectedId(newExp.id)
+    setView('detail')
   }
 
   const handleStartWithBackend = async (expId: string) => {
@@ -232,6 +233,8 @@ function App() {
     const exp = experiments.find(e => e.id === selectedId)
     if (!exp) return
 
+    addEvent(selectedId, createEvent('human_continue', '👤 人工决策：继续执行'))
+
     if (!runnerRef.current) {
       runnerRef.current = createRunner(runnerType)
       updateStatus(selectedId, 'running')
@@ -256,6 +259,8 @@ function App() {
   }
 
   const handleStop = async () => {
+    addEvent(selectedId, createEvent('human_stop', '👤 人工决策：停止实验'))
+
     if (backendExperimentId) {
       try {
         await api.stopExperiment(backendExperimentId);
@@ -275,6 +280,8 @@ function App() {
   const handleRetry = async () => {
     const exp = experiments.find(e => e.id === selectedId);
     if (!exp || !backendExperimentId) return;
+
+    addEvent(selectedId, createEvent('human_retry', '👤 人工决策：重试实验'))
 
     try {
       const result = await api.retryExperiment(backendExperimentId);
@@ -361,7 +368,7 @@ function App() {
         </div>
       </div>
       {view === 'list' && <ExperimentList experiments={experiments} onSelect={id => { setSelectedId(id); setView('detail') }} onCreate={() => setView('create')} runtimes={runtimes} />}
-      {view === 'create' && <ExperimentForm onSubmit={handleCreate} onCancel={() => setView('list')} />}
+      {view === 'create' && <ExperimentForm onSubmit={handleCreate} onCancel={() => setView('list')} selectedRuntimeId={selectedRuntimeId} selectedRuntimeMode={selectedRuntimeMode} />}
       {view === 'detail' && <ExperimentDetail
         experiment={experiments.find(e => e.id === selectedId)!}
         onBack={() => setView('list')}
@@ -376,7 +383,7 @@ function App() {
       />}
       {view === 'settings' && <Settings onBack={() => setView('list')} />}
       {view === 'openclaw-debug' && <OpenClawDebugPanel onBack={() => setView('list')} />}
-      {view === 'runtime' && <RuntimeManager onBack={() => setView('list')} onSelectRuntime={(id, mode) => { setSelectedRuntimeId(id); setSelectedRuntimeMode(mode); setView('list'); }} />}
+      {view === 'runtime' && <RuntimeManager onBack={() => setView('list')} onSelectRuntime={(id, mode) => { setSelectedRuntimeId(id); setSelectedRuntimeMode(mode); setView('list'); }} recentExperiments={experiments.slice(-10).map(e => ({ id: e.id, name: e.name, runtime_id: e.runtime_id, status: e.status }))} />}
       {view === 'compare' && <CompareRuns onBack={() => setView('list')} />}
     </div>
   )

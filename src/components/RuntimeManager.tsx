@@ -4,6 +4,7 @@ import { api, Runtime } from '../services/api';
 interface Props {
   onBack: () => void;
   onSelectRuntime: (runtimeId: string, mode: string) => void;
+  recentExperiments?: Array<{ id: string; name: string; runtime_id?: string; status: string }>;
 }
 
 function getStatusConfig(r: Runtime) {
@@ -26,7 +27,7 @@ function getModeLabel(mode: string) {
   return { demo: '🎭 Demo', simulated: '🔧 模拟', real: '🟢 真实设备' }[mode] || mode;
 }
 
-export default function RuntimeManager({ onBack, onSelectRuntime }: Props) {
+export default function RuntimeManager({ onBack, onSelectRuntime, recentExperiments = [] }: Props) {
   const [runtimes, setRuntimes] = useState<Runtime[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -75,6 +76,7 @@ export default function RuntimeManager({ onBack, onSelectRuntime }: Props) {
 
   const RuntimeCard = ({ r, selectable }: { r: Runtime; selectable: boolean }) => {
     const cfg = getStatusConfig(r);
+    const relatedExps = recentExperiments.filter(e => e.runtime_id === r.id).slice(0, 2);
     return (
       <div style={{
         border: selectable ? `2px solid ${cfg.color}40` : '1px solid #e5e7eb',
@@ -110,6 +112,17 @@ export default function RuntimeManager({ onBack, onSelectRuntime }: Props) {
               {r.active_experiment_duration_ms != null && (
                 <span style={{ fontWeight: 400, marginLeft: 6 }}>已运行 {Math.floor(r.active_experiment_duration_ms / 1000)}s</span>
               )}
+            </div>
+          )}
+          {relatedExps.length > 0 && (
+            <div style={{ padding: '6px 8px', background: '#eff6ff', borderRadius: 5, marginTop: 4 }}>
+              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>最近实验</div>
+              {relatedExps.map(exp => (
+                <div key={exp.id} style={{ fontSize: 11, color: '#374151', display: 'flex', gap: 6, alignItems: 'center', marginBottom: 2 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: exp.status === 'success' ? '#10b981' : exp.status === 'failed' ? '#ef4444' : '#3b82f6' }} />
+                  <span>{exp.name.slice(0, 20)}{exp.name.length > 20 ? '…' : ''}</span>
+                </div>
+              ))}
             </div>
           )}
           {r.device_id && <div><span style={{ color: '#9ca3af' }}>Device:</span> {r.device_id.slice(0, 18)}…</div>}

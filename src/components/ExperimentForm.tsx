@@ -15,12 +15,14 @@ interface FormData {
 interface Props {
   onSubmit: (data: FormData) => void
   onCancel: () => void
+  selectedRuntimeId?: string
+  selectedRuntimeMode?: string
 }
 
 const AVAILABLE_TOOLS = ['read', 'write', 'bash', 'search']
 const MODELS = ['claude-sonnet-4', 'claude-opus-4', 'gpt-4']
 
-export default function ExperimentForm({ onSubmit, onCancel }: Props) {
+export default function ExperimentForm({ onSubmit, onCancel, selectedRuntimeId, selectedRuntimeMode }: Props) {
   const [data, setData] = useState<FormData>({
     name: '',
     description: '',
@@ -47,6 +49,22 @@ export default function ExperimentForm({ onSubmit, onCancel }: Props) {
   return (
     <div style={{ maxWidth: '600px' }}>
       <h2>创建实验</h2>
+      {selectedRuntimeId && (
+        <div style={{ padding: '12px 16px', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 8, marginBottom: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#065f46', marginBottom: 4 }}>✓ 已选择 Runtime</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, color: '#047857' }}>
+            <span style={{ fontFamily: 'monospace' }}>{selectedRuntimeId.slice(0, 12)}...</span>
+            <span style={{ padding: '2px 8px', background: selectedRuntimeMode === 'real' ? '#d1fae5' : '#f3f4f6', borderRadius: 4, fontWeight: 600, color: selectedRuntimeMode === 'real' ? '#065f46' : '#374151' }}>
+              {selectedRuntimeMode === 'real' ? '🟢 真实设备' : selectedRuntimeMode === 'simulated' ? '🔧 模拟' : '🎭 Demo'}
+            </span>
+          </div>
+        </div>
+      )}
+      {!selectedRuntimeId && (
+        <div style={{ padding: '12px 16px', background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 8, marginBottom: 16 }}>
+          <div style={{ fontSize: 13, color: '#92400e' }}>⚠️ 未选择 Runtime，创建后需要手动连接</div>
+        </div>
+      )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         <input
           type="text"
