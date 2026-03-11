@@ -7,9 +7,10 @@ const command = args[0];
 if (command !== 'start') {
   console.log('Usage: agentlab-connect start [options]');
   console.log('Options:');
-  console.log('  --backend <url>   Backend URL (default: http://localhost:8787)');
-  console.log('  --gateway <url>   Gateway URL (default: http://localhost:18889)');
-  console.log('  --name <name>     Runtime display name (default: Local OpenClaw)');
+  console.log('  --backend <url>        Backend URL (default: http://localhost:8787)');
+  console.log('  --gateway <url>        Gateway URL (default: http://localhost:18889)');
+  console.log('  --name <name>          Runtime display name (default: Local OpenClaw)');
+  console.log('  --gateway-token <tok>  Gateway auth token (default: empty)');
   process.exit(1);
 }
 
@@ -23,7 +24,8 @@ const DISPATCH_PORT = parseInt(getArg('--dispatch-port', '18890'));
 const config = {
   backend: getArg('--backend', 'http://localhost:8787'),
   gateway: getArg('--gateway', 'http://localhost:18889'),
-  name: getArg('--name', 'Local OpenClaw')
+  name: getArg('--name', 'Local OpenClaw'),
+  gatewayToken: getArg('--gateway-token', '')
 };
 
 // The dispatch server URL is what AgentLab backend will call for /experiments

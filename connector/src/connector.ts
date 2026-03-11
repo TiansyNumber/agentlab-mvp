@@ -9,6 +9,7 @@ interface ConnectorConfig {
   backend: string;
   gateway: string;
   name: string;
+  gatewayToken?: string;
   deviceId?: string;
   publicKey?: string;
   privateKeyPem?: string;
@@ -350,8 +351,11 @@ export class AgentLabConnector {
       console.log(`   [${experimentId.substring(0, 8)}] event: ${type}`);
     };
 
-    const gatewayWsUrl = this.config.gateway.replace(/^http/, 'ws');
-    addEvent('acp_connecting', { url: gatewayWsUrl });
+    const baseWsUrl = this.config.gateway.replace(/^http/, 'ws');
+    const gatewayWsUrl = this.config.gatewayToken
+      ? `${baseWsUrl}?token=${encodeURIComponent(this.config.gatewayToken)}`
+      : baseWsUrl;
+    addEvent('acp_connecting', { url: baseWsUrl });
 
     try {
       const ws = new WebSocket(gatewayWsUrl);
